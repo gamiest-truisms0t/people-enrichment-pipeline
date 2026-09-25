@@ -39,11 +39,16 @@ check: lint test ## Lint + test
 precommit: ## Run every pre-commit hook on the whole tree
 	pre-commit run --all-files
 
-INPUT ?= data/sample/names.csv
-OUT   ?= out
+INPUT    ?= data/sample/names.csv
+OUT      ?= out
+PROVIDER ?= mock
+SANDBOX  ?= 0
 
-run: ## Run the pipeline locally with the mock provider (INPUT=..., OUT=...)
-	$(UV) run enrich run --input $(INPUT) --provider mock --out $(OUT)
+run: ## Run the pipeline locally (PROVIDER=mock|pdl, SANDBOX=1 for PDL's free sandbox, INPUT=..., OUT=...)
+	$(UV) run enrich run --input $(INPUT) --provider $(PROVIDER) $(if $(filter 1,$(SANDBOX)),--sandbox,) --out $(OUT)
+
+record-fixtures: ## Record synthetic PDL sandbox responses into tests/fixtures/pdl (zero credits, ~90 s)
+	$(UV) run python scripts/record_pdl_fixtures.py
 
 query: ## Answer the brief's three questions against local Parquet with DuckDB
 	$(UV) run enrich query --out $(OUT)
@@ -133,6 +138,10 @@ e2e: ## Upload INPUT and follow the Step Functions execution the upload triggers
 executions: ## List the five most recent pipeline executions
 	aws stepfunctions list-executions --state-machine-arn "$$($(TF_ENV) output -raw state_machine_arn)" \
 	  --max-results 5 --no-paginate --query 'executions[].[status,startDate,name]' --output table
+
+report: ## Per-row outcomes, scores and provider credit headers for BATCH=<batch_id>, read from S3
+	@test -n "$(BATCH)" || { echo "usage: make report BATCH=<batch_id>"; exit 1; }
+	$(UV) run python scripts/batch_report.py --bucket "$$($(TF_ENV) output -raw data_bucket)" --batch $(BATCH)
 
 rebuild: ## Rebuild the curated tables for BATCH=<batch_id> from stored results (no provider calls)
 	@test -n "$(BATCH)" || { echo "usage: make rebuild BATCH=<batch_id>"; exit 1; }

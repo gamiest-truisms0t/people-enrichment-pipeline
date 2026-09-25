@@ -470,7 +470,18 @@ with a commit/tag and a working state you could submit if you ran out of time.
 3. `make upload FILE=data/sample/names.csv` → watch execution → curated Parquet appears.
    *Done when:* end-to-end with the mock provider from a CSV upload. Tag `v0.1.0`.
 
-### Phase 4 — Real provider (2–3 h)
+### Phase 4 — Real provider (2–3 h) — ✅ done 2026-09-25, `v0.2.0`
+
+> Deviations: `PdlProvider` is plain `httpx` rather than the SDK (full control over
+> headers and status codes). Live findings changed the defaults: the free plan bills
+> Identify from a separate pool of only **5 credits/month** (enrichment has 100), so the
+> budget guard and the HTTP 402 marker are per call kind and `MAX_IDENTIFY_CREDITS`
+> defaults to 2; correct name+company matches score a likelihood of about 4, so
+> `min_likelihood` defaults to 4 (6 kept 1 match in 8) and the threshold is part of the
+> cache key; the sandbox answers 404 to every name-based lookup, so sandbox tests use
+> LinkedIn URLs; `x-ratelimit-reset` is a UTC timestamp. Month-to-date spend after the
+> demo: 21/100 enrichment, 3/5 identify. 4b (Diffbot fallback) deferred: the enrichment
+> pool is ample; the identify pool is the constraint, so inputs should carry a company.
 
 1. `PdlProvider` via the official `peopledatalabs` SDK (or plain `httpx`): Enrichment for
    rows with context, Identify for name-only rows; parse the rate-limit and credit headers;

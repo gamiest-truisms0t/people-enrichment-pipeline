@@ -1,0 +1,379 @@
+{
+  "body": {
+    "data": {
+      "countries": [
+        "united states",
+        "united states",
+        "canada"
+      ],
+      "dataset_version": "v35.2",
+      "education": [
+        {
+          "degrees": [
+            "bachelor of science in microbiology"
+          ],
+          "end_date": "2004-01-24",
+          "gpa": 1.7,
+          "majors": [
+            "scandinavian literature and culture",
+            "film",
+            "japanese language studies"
+          ],
+          "minors": [
+            "european modern languages"
+          ],
+          "school": {
+            "domain": "thornton-moore-and-carrillo.edu",
+            "facebook_url": "facebook.com/thornton-moore-and-carrillo",
+            "id": null,
+            "linkedin_id": "86518214",
+            "linkedin_url": "linkedin.com/school/thornton-moore-and-carrillo",
+            "location": {
+              "continent": "north america",
+              "country": "canada",
+              "locality": "port cathy",
+              "name": "port cathy, ontario, canada",
+              "region": "ontario"
+            },
+            "name": "thornton, moore and carrillo",
+            "twitter_url": "twitter.com/thornton-moore-and-carrillo",
+            "type": "secondary school",
+            "website": "thornton-moore-and-carrillo.edu"
+          },
+          "start_date": "2005-10-27"
+        },
+        {
+          "degrees": [
+            "master of science in instructional leadership administration"
+          ],
+          "end_date": "2010-12-09",
+          "gpa": 1.0,
+          "majors": [
+            "slavic culture",
+            "naval architecture and ocean engineering"
+          ],
+          "minors": [
+            "afrikaans language and culture",
+            "buddhist studies",
+            "african literature and culture"
+          ],
+          "school": {
+            "domain": "spencer-and-sons.edu",
+            "facebook_url": "facebook.com/spencer-and-sons",
+            "id": null,
+            "linkedin_id": "22343822",
+            "linkedin_url": "linkedin.com/school/spencer-and-sons",
+            "location": {
+              "continent": "north america",
+              "country": "canada",
+              "locality": "annborough",
+              "name": "annborough, british columbia, canada",
+              "region": "british columbia"
+            },
+            "name": "spencer and sons",
+            "twitter_url": "twitter.com/spencer-and-sons",
+            "type": "secondary school",
+            "website": "spencer-and-sons.edu"
+          },
+          "start_date": "2009-05-02"
+        },
+        {
+          "degrees": [
+            "doctor of medical dentistry"
+          ],
+          "end_date": "2013-09-19",
+          "gpa": 4.2,
+          "majors": [
+            "cognitive science",
+            "electrical engineering tech",
+            "broadcast journalism"
+          ],
+          "minors": [
+            "statistics and decision science"
+          ],
+          "school": {
+            "domain": "marsh-ltd.edu",
+            "facebook_url": "facebook.com/marsh-ltd",
+            "id": null,
+            "linkedin_id": "75016428",
+            "linkedin_url": "linkedin.com/school/marsh-ltd",
+            "location": {
+              "continent": "north america",
+              "country": "united states",
+              "locality": "johnberg",
+              "name": "johnberg, california, united states",
+              "region": "california"
+            },
+            "name": "marsh ltd",
+            "twitter_url": "twitter.com/marsh-ltd",
+            "type": "primary school",
+            "website": "marsh-ltd.edu"
+          },
+          "start_date": "2006-11-30"
+        }
+      ],
+      "experience": [
+        {
+          "company": {
+            "facebook_url": "facebook.com/russell-alvarez-and-morgan",
+            "founded": 1973,
+            "id": "9qz7mwxVYTTzIvovHj04YvkNHmCF",
+            "industry": "pharmaceuticals",
+            "industry_v2": "radio and television broadcasting",
+            "linkedin_id": "77106036",
+            "linkedin_url": "linkedin.com/company/russell-alvarez-and-morgan",
+            "location": {
+              "address_line_2": "suite 575",
+              "continent": "north america",
+              "country": "canada",
+              "geo": "64.2120735,128.424147",
+              "locality": "stewartmouth",
+              "metro": "stewartmouth",
+              "name": "stewartmouth, quebec, canada",
+              "postal_code": "A9A 6A5",
+              "region": "quebec",
+              "street_address": "7537 wells circles apt. 914"
+            },
+            "name": "russell, alvarez and morgan",
+            "size": "10001+",
+            "twitter_url": "twitter.com/russell-alvarez-and-morgan",
+            "website": "russell-alvarez-and-morgan.com"
+          },
+          "end_date": "2021-05-06",
+          "is_primary": true,
+          "location_names": [
+            "stewartmouth, quebec, canada"
+          ],
+          "start_date": "2019-08-12",
+          "title": {
+            "class": null,
+            "levels": [
+              "vp",
+              "vp",
+              "vp"
+            ],
+            "name": "teacher, special educational needs",
+            "role": "education",
+            "sub_role": "primary_and_secondary"
+          }
+        },
+        {
+          "company": {
+            "facebook_url": "facebook.com/alvarez-morgan",
+            "founded": 1933,
+            "id": "cVADSEEzUoivQVKXoDg55HgDRKF0",
+            "industry": "religious institutions",
+            "industry_v2": "military and international affairs",
+            "linkedin_id": "83170394",
+            "linkedin_url": "linkedin.com/company/alvarez-morgan",
+            "location": {
+              "address_line_2": "apt. 229",
+              "continent": "north america",
+              "country": "united states",
+              "geo": "-12.7976895,-26.905199",
+              "locality": "new jeanetteland",
+              "metro": "new jeanetteland",
+              "name": "new jeanetteland, california, united states",
+              "postal_code": "61156",
+              "region": "california",
+              "street_address": "7332 kayla street suite 829"
+            },
+            "name": "alvarez-morgan",
+            "size": "10001+",
+            "twitter_url": "twitter.com/alvarez-morgan",
+            "website": "alvarez-morgan.com"
+          },
+          "end_date": "2019-04-06",
+          "is_primary": false,
+          "location_names": [
+            "alejandroview, quebec, canada"
+          ],
+          "start_date": "2019-03-24",
+          "title": {
+            "class": null,
+            "levels": [
+              "unpaid"
+            ],
+            "name": "contracting civil engineer",
+            "role": "engineering",
+            "sub_role": "mechanical"
+          }
+        },
+        {
+          "company": {
+            "facebook_url": "facebook.com/molina-herrera-and-castro",
+            "founded": 1915,
+            "id": "bhvkRA3jkiv7zRRNKVEMjTR9ovef",
+            "industry": "entertainment",
+            "industry_v2": "renewable energy semiconductor manufacturing",
+            "linkedin_id": "92106510",
+            "linkedin_url": "linkedin.com/company/molina-herrera-and-castro",
+            "location": {
+              "address_line_2": "apt. 994",
+              "continent": "north america",
+              "country": "united states",
+              "geo": "34.708599,22.076842",
+              "locality": "mackenziehaven",
+              "metro": "mackenziehaven",
+              "name": "mackenziehaven, california, united states",
+              "postal_code": "57961",
+              "region": "california",
+              "street_address": "2854 phillips locks suite 142"
+            },
+            "name": "molina, herrera and castro",
+            "size": "10001+",
+            "twitter_url": "twitter.com/molina-herrera-and-castro",
+            "website": "molina-herrera-and-castro.com"
+          },
+          "end_date": "2019-10-22",
+          "is_primary": false,
+          "location_names": [
+            "charlesbury, texas, united states",
+            "west kelseyside, quebec, canada",
+            "wilsonbury, california, united states"
+          ],
+          "start_date": "2019-07-10",
+          "title": {
+            "class": null,
+            "levels": [
+              "entry",
+              "director",
+              "training"
+            ],
+            "name": "buyer, retail",
+            "role": "fulfillment",
+            "sub_role": "logistics"
+          }
+        },
+        {
+          "company": {
+            "facebook_url": "facebook.com/edwards-pierce-and-smith",
+            "founded": 1951,
+            "id": "MQEVAs5X9kmTE9y1Y3k6Z7D1hqNA",
+            "industry": "oil & energy",
+            "industry_v2": "metal valve, ball, and roller manufacturing",
+            "linkedin_id": "20754134",
+            "linkedin_url": "linkedin.com/company/edwards-pierce-and-smith",
+            "location": {
+              "address_line_2": "suite 188",
+              "continent": "north america",
+              "country": "canada",
+              "geo": "14.9202885,-52.410168",
+              "locality": "new monicaberg",
+              "metro": "new monicaberg",
+              "name": "new monicaberg, ontario, canada",
+              "postal_code": "A9A 5A8",
+              "region": "ontario",
+              "street_address": "82568 peters ferry suite 463"
+            },
+            "name": "edwards, pierce and smith",
+            "size": "10001+",
+            "twitter_url": "twitter.com/edwards-pierce-and-smith",
+            "website": "edwards-pierce-and-smith.com"
+          },
+          "end_date": "2020-03-01",
+          "is_primary": false,
+          "location_names": [
+            "mitchelltown, texas, united states"
+          ],
+          "start_date": "2018-09-06",
+          "title": {
+            "class": null,
+            "levels": [
+              "entry"
+            ],
+            "name": "engineer, production",
+            "role": "engineering",
+            "sub_role": null
+          }
+        }
+      ],
+      "facebook_id": "qWjyEy",
+      "facebook_url": "facebook.com/aa73",
+      "facebook_username": "aa73",
+      "first_name": "autumn",
+      "full_name": "autumn andrews",
+      "github_url": "github.com/aa73",
+      "github_username": "aa73",
+      "id": "qWjyEydGMozLkaOMBNmiHE_0000",
+      "industry": "pharmaceuticals",
+      "interests": [],
+      "job_company_facebook_url": "facebook.com/russell-alvarez-and-morgan",
+      "job_company_founded": 1973,
+      "job_company_id": "9qz7mwxVYTTzIvovHj04YvkNHmCF",
+      "job_company_industry": "pharmaceuticals",
+      "job_company_industry_v2": "radio and television broadcasting",
+      "job_company_linkedin_id": "77106036",
+      "job_company_linkedin_url": "linkedin.com/company/russell-alvarez-and-morgan",
+      "job_company_location_address_line_2": "suite 575",
+      "job_company_location_continent": "north america",
+      "job_company_location_country": "canada",
+      "job_company_location_geo": "64.2120735,128.424147",
+      "job_company_location_locality": "stewartmouth",
+      "job_company_location_metro": "stewartmouth",
+      "job_company_location_name": "stewartmouth, quebec, canada",
+      "job_company_location_postal_code": "A9A 6A5",
+      "job_company_location_region": "quebec",
+      "job_company_location_street_address": "7537 wells circles apt. 914",
+      "job_company_name": "russell, alvarez and morgan",
+      "job_company_size": "10001+",
+      "job_company_twitter_url": "twitter.com/russell-alvarez-and-morgan",
+      "job_company_website": "russell-alvarez-and-morgan.com",
+      "job_last_changed": "2026-09-13",
+      "job_last_verified": "2026-09-13",
+      "job_start_date": "2019-08-12",
+      "job_title": "teacher, special educational needs",
+      "job_title_class": "services",
+      "job_title_levels": [
+        "vp",
+        "vp",
+        "vp"
+      ],
+      "job_title_role": "education",
+      "job_title_sub_role": "primary_and_secondary",
+      "last_initial": "a",
+      "last_name": "andrews",
+      "linkedin_id": "qWjyEy",
+      "linkedin_url": "linkedin.com/in/aa73",
+      "linkedin_username": "aa73",
+      "location_address_line_2": "suite 575",
+      "location_continent": "north america",
+      "location_country": "canada",
+      "location_geo": true,
+      "location_last_updated": "2026-09-13",
+      "location_locality": true,
+      "location_metro": true,
+      "location_name": true,
+      "location_names": true,
+      "location_postal_code": true,
+      "location_region": true,
+      "location_street_address": true,
+      "middle_initial": null,
+      "middle_name": null,
+      "regions": true,
+      "skills": [
+        "level",
+        "already"
+      ],
+      "twitter_url": "twitter.com/aa73",
+      "twitter_username": "aa73"
+    },
+    "likelihood": 9,
+    "status": 200
+  },
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit": "{\"minute\": 100}",
+    "x-ratelimit-remaining": "{\"minute\": 99}",
+    "x-ratelimit-reset": "2026-09-25 14:18:55"
+  },
+  "request": {
+    "kind": "enrich",
+    "params": {
+      "min_likelihood": "6",
+      "profile": "linkedin.com/in/aa73"
+    },
+    "sandbox": true
+  },
+  "status": 200
+}

@@ -5,12 +5,13 @@ optional email/company), enriches each person through a free people-profile API,
 lands analyst-ready Parquet tables (people, employment history, lookup log) queryable
 in Athena. Provisioned entirely with Terraform. Designed to run on free-tier credits.
 
-**Status:** Phase 2 complete. The pipeline runs locally against a mock provider (CSV in,
-raw JSON + three Parquet tables out, verified with DuckDB) **and** as three Lambda
-functions on AWS provisioned by Terraform, with S3 raw/curated layers and a DynamoDB
-cache/budget table. Orchestration (Step Functions + S3 trigger) is Phase 3; the real
-provider is Phase 4. See [PLAN.md](PLAN.md) for the architecture, data model, failure
-handling, and build phases. This README is filled in fully at Phase 7.
+**Status:** Phase 3 complete. Dropping a CSV into the landing bucket starts a Step
+Functions execution that validates the file, enriches each row through a Lambda
+function, and builds the three curated Parquet tables, with failures reported to an SNS
+email topic. Everything is provisioned by Terraform and runs against the mock provider;
+the real provider is Phase 4 and the Athena layer is Phase 5. See [PLAN.md](PLAN.md)
+for the architecture, data model, failure handling, and build phases. This README is
+filled in fully at Phase 7.
 
 ## Quick start (developer)
 
@@ -45,9 +46,40 @@ What `make apply` creates, all inside always-free allowances:
 | Per-function IAM role | least privilege: only the prefixes and table actions each function touches |
 | Log groups, alarms, DLQ | 14-day retention, Errors ≥ 1 alarms, SQS dead-letter queue for async invokes |
 
+| Step Functions state machine | `validate-input` → Map over rows (`enrich`, `MaxConcurrency` 1) → `build-curated` → summary; retries, per-row catch, SNS on failure |
+| EventBridge rule | S3 `Object Created` on `incoming/*.csv` in the landing bucket starts an execution; undeliverable events go to the DLQ |
+| SNS topic + email subscription | pipeline failures, batches with row errors, and the Lambda error alarms |
+
 Both buckets block public access, enforce TLS, are versioned and SSE-S3 encrypted. No
-public endpoint exists: functions are invoked only by Step Functions (Phase 3) or by an
-IAM principal. Every checkov skip is listed with a reason in `.checkov.yaml`.
+public endpoint exists: functions are invoked only by Step Functions or by an IAM
+principal, and the only way to start a run is to write to the landing bucket. Every
+checkov skip is listed with a reason in `.checkov.yaml` or inline next to the resource.
+
+## Running a batch on AWS
+
+```bash
+make e2e          # upload data/sample/names.csv and follow the execution it triggers
+make upload INPUT=path/to/registrants.csv   # just upload; EventBridge does the rest
+make executions   # the five most recent executions
+make rebuild BATCH=<batch_id>               # rebuild curated tables from stored results
+```
+
+A run looks like this in the state machine:
+
+1. **ValidateInput** parses the CSV. A bad header fails the batch (and emails you); bad
+   rows are recorded and the batch continues.
+2. **EnrichRows** is a Map state over the rows. Each row is one `enrich` invocation, which
+   already retries provider 429/5xx internally; the Map retries Lambda-level throttles
+   and catches crashes into an `error` row so the batch still completes.
+3. **BuildCurated** writes the Parquet tables and manifest.
+4. **Summarize** counts row errors. Zero: the execution succeeds. Otherwise an SNS
+   notification lists the batch, the counts and the manifest, and the execution still
+   succeeds because the data is complete apart from the flagged rows.
+5. Any failure in steps 1 or 3 publishes to SNS and ends the execution as FAILED with the
+   original error and cause.
+
+Execution history is logged to CloudWatch at level ALL without state payloads, so names
+and emails never appear in logs. X-Ray tracing is on for the state machine and functions.
 
 `make run` prints a per-status summary (matched, ambiguous, not_found, cached,
 budget_deferred, invalid_input, error) and writes:
@@ -68,7 +100,9 @@ The same layout is what lands in S3 from Phase 2 onwards.
    candidate score at least 70 and 20 points clear of the runner-up, otherwise `ambiguous`.
 2. **Idempotency.** A normalised lookup key (NFKC, casefold, whitespace and punctuation
    folded, plus the identifiers used) means a repeated name is served from cache at zero
-   credits.
+   credits. On AWS the cache lives in DynamoDB for 90 days, so re-uploading a file costs
+   nothing and still produces complete curated tables for that batch; the operational
+   table records those rows as `cached`.
 3. **Protection.** Retries with header-driven waits on 429 and backoff on 5xx; per-run
    credit ceilings; an HTTP 402 marks the provider exhausted and defers the rest of the
    batch instead of failing it.

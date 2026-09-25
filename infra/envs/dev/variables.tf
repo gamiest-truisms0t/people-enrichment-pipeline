@@ -94,8 +94,13 @@ variable "pandas_layer_arn" {
   default     = "arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python313-Arm64:16"
 }
 
-variable "alarm_actions" {
-  description = "SNS topic ARNs notified by the Lambda error alarms (Phase 3 wires the topic)."
-  type        = list(string)
-  default     = []
+variable "alert_email" {
+  description = "Email address subscribed to the alerts topic. Confirm the subscription email once after apply."
+  type        = string
+}
+
+variable "max_concurrency" {
+  description = "Parallel enrich invocations per batch. 1 keeps name-only lookups under the provider's 10/minute identify limit."
+  type        = number
+  default     = 1
 }

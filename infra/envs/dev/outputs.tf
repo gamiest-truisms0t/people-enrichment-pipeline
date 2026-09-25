@@ -18,6 +18,22 @@ output "lambda_dlq_url" {
   value = aws_sqs_queue.lambda_dlq.url
 }
 
+output "state_machine_arn" {
+  value = module.orchestration.state_machine_arn
+}
+
+output "state_machine_name" {
+  value = module.orchestration.state_machine_name
+}
+
+output "alerts_topic_arn" {
+  value = aws_sns_topic.alerts.arn
+}
+
+output "event_rule_name" {
+  value = module.orchestration.event_rule_name
+}
+
 output "function_names" {
   value = {
     validate_input = module.fn_validate_input.function_name

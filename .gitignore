@@ -40,3 +40,6 @@ override.tf.json
 .idea/
 .vscode/
 *.swp
+
+# Terraform lock files belong to the root stacks; the module dirs only get one from the validate hook
+infra/modules/**/.terraform.lock.hcl

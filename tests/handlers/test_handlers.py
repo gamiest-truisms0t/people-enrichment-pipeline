@@ -124,7 +124,15 @@ def test_402_exhaustion_persists_between_invocations(
         lambda_context,
     )
     second = enrich.handler(
-        {**event, "row": {"row_number": 2, "first_name": "John", "last_name": "Doe"}},
+        {
+            **event,
+            "row": {
+                "row_number": 2,
+                "first_name": "Jane",
+                "last_name": "Smith",
+                "company": "Globex",
+            },
+        },
         lambda_context,
     )
     assert first["status"] == "budget_deferred"
@@ -132,8 +140,15 @@ def test_402_exhaustion_persists_between_invocations(
     assert second["status"] == "budget_deferred"
     assert second["attempts"] == 0
 
-    marker = aws["table"].get_item(Key={"pk": "budget#mock#2026-10#exhausted"}).get("Item")
+    marker = aws["table"].get_item(Key={"pk": "budget#mock#2026-10#exhausted#enrich"}).get("Item")
     assert marker and marker["exhausted"] is True
+
+    # Identify is a separate credit pool and is unaffected by the enrich 402.
+    third = enrich.handler(
+        {**event, "row": {"row_number": 3, "first_name": "John", "last_name": "Doe"}},
+        lambda_context,
+    )
+    assert third["status"] == "matched"
 
 
 def test_validate_rejects_a_bad_header(aws: dict[str, Any], lambda_context: FakeContext) -> None:

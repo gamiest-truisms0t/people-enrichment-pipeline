@@ -1,26 +1,150 @@
-"""Local command-line entry point.
+"""Command-line entry point for local runs.
 
-Phase 1 turns this into the local runner:
-    enrich run --input data/sample/names.csv --provider mock --out ./out
+enrich run   --input data/sample/names.csv --provider mock --out ./out
+enrich query --out ./out          # answers the brief's three questions with DuckDB
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
+from pathlib import Path
 
 from enrich_pipeline import __version__
+from enrich_pipeline.enricher import EnrichConfig
+from enrich_pipeline.providers.base import Provider
+
+QUESTIONS: dict[str, str] = {
+    "1. Who are the individuals identified?": """
+        SELECT full_name, current_job_title, current_company_name, location_country,
+               match_likelihood, lookup_method
+        FROM read_parquet('{out}/curated/dim_person/*/*.parquet', hive_partitioning = true)
+        ORDER BY full_name
+    """,
+    "2. What companies have they worked at?": """
+        SELECT p.full_name, e.company_name, e.company_industry, e.start_date, e.end_date,
+               e.is_current
+        FROM read_parquet('{out}/curated/fact_employment/*/*.parquet', hive_partitioning = true) e
+        JOIN read_parquet('{out}/curated/dim_person/*/*.parquet', hive_partitioning = true) p
+          ON p.person_id = e.person_id AND p.batch_id = e.batch_id
+        ORDER BY p.full_name, e.sequence_no
+    """,
+    "3. What roles have they held?": """
+        SELECT p.full_name, e.title_name, e.title_role, e.title_levels, e.company_name
+        FROM read_parquet('{out}/curated/fact_employment/*/*.parquet', hive_partitioning = true) e
+        JOIN read_parquet('{out}/curated/dim_person/*/*.parquet', hive_partitioning = true) p
+          ON p.person_id = e.person_id AND p.batch_id = e.batch_id
+        ORDER BY p.full_name, e.sequence_no
+    """,
+    "Operational: outcome per input row": """
+        SELECT batch_id, row_number, input_first_name, input_last_name, status, lookup_method,
+               likelihood, candidates, http_status, credits_consumed, attempts
+        FROM read_parquet('{out}/curated/fact_lookup/*/*.parquet', hive_partitioning = true)
+        ORDER BY batch_id, row_number
+    """,
+}
+
+
+def make_provider(name: str) -> Provider:
+    if name == "mock":
+        from enrich_pipeline.providers.mock import MockProvider
+
+        return MockProvider()
+    if name == "pdl":
+        raise SystemExit("the 'pdl' provider arrives in Phase 4; use --provider mock for now")
+    raise SystemExit(f"unknown provider {name!r}")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="enrich", description="People-enrichment pipeline")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    sub = parser.add_subparsers(dest="command")
+
+    run = sub.add_parser("run", help="enrich a CSV locally and write raw JSON + curated Parquet")
+    run.add_argument("--input", required=True, type=Path, help="CSV with first_name,last_name,...")
+    run.add_argument("--out", default=Path("out"), type=Path, help="output directory")
+    run.add_argument("--provider", default="mock", choices=["mock", "pdl"])
+    run.add_argument("--batch-id", default=None)
+    run.add_argument("--location-hint", default=None, help="event location added to name lookups")
+    run.add_argument("--max-enrich-credits", type=int, default=None)
+    run.add_argument("--max-identify-credits", type=int, default=None)
+    run.add_argument("--identify-min-score", type=int, default=70)
+    run.add_argument("--identify-min-margin", type=int, default=20)
+    run.add_argument("--json", action="store_true", help="print the run summary as JSON")
+
+    query = sub.add_parser("query", help="answer the brief's questions against local Parquet")
+    query.add_argument("--out", default=Path("out"), type=Path)
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def _print_table(columns: Sequence[str], rows: Sequence[Sequence[object]]) -> None:
+    cells = [[("" if v is None else str(v)) for v in row] for row in rows]
+    widths = [len(c) for c in columns]
+    for row in cells:
+        for i, value in enumerate(row):
+            widths[i] = min(max(widths[i], len(value)), 48)
+    fmt = "  ".join(f"{{:<{w}}}" for w in widths)
+    print(fmt.format(*columns))
+    print(fmt.format(*("-" * w for w in widths)))
+    for row in cells:
+        print(fmt.format(*(v[:48] for v in row)))
+    print(f"({len(rows)} rows)")
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    from enrich_pipeline.runner import run_batch
+
+    config = EnrichConfig(
+        identify_min_score=args.identify_min_score,
+        identify_min_margin=args.identify_min_margin,
+        max_enrich_credits=args.max_enrich_credits,
+        max_identify_credits=args.max_identify_credits,
+        location_hint=args.location_hint,
+    )
+    summary = run_batch(
+        args.input,
+        provider=make_provider(args.provider),
+        out_dir=args.out,
+        config=config,
+        batch_id=args.batch_id,
+    )
+    if args.json:
+        print(summary.to_json())
+        return 0
+    print(f"batch {summary.batch_id} ({summary.batch_date}) via {summary.provider}")
+    print(f"rows: {summary.rows_valid} valid, {summary.rows_invalid} invalid")
+    for status, count in summary.status_counts.items():
+        print(f"  {status:<16} {count}")
+    print(f"credits spent: {summary.credits_spent}")
+    print(f"persons: {summary.persons}, employment rows: {summary.employment_rows}")
+    print(f"manifest: {summary.manifest}")
+    return 0
+
+
+def cmd_query(args: argparse.Namespace) -> int:
+    try:
+        import duckdb
+    except ImportError:  # pragma: no cover
+        raise SystemExit("duckdb is a dev dependency: run `uv sync` first") from None
+
+    out = str(Path(args.out).resolve())
+    con = duckdb.connect()
+    for title, sql in QUESTIONS.items():
+        print(f"\n== {title}")
+        cursor = con.execute(sql.format(out=out))
+        columns = [d[0] for d in cursor.description]
+        _print_table(columns, cursor.fetchall())
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.command == "run":
+        return cmd_run(args)
+    if args.command == "query":
+        return cmd_query(args)
     parser.print_help()
     return 0
 

@@ -1,0 +1,413 @@
+{
+  "status": 200,
+  "data": [
+    {
+      "id": "tGolfTFrRqMacACPGQRzlU_0000",
+      "full_name": "jennifer jennifer le",
+      "first_name": "jennifer",
+      "middle_initial": "j",
+      "middle_name": "jennifer",
+      "last_initial": "l",
+      "last_name": "le",
+      "sex": null,
+      "birth_year": true,
+      "birth_date": true,
+      "linkedin_url": "linkedin.com/in/jennifer_le",
+      "linkedin_username": "jennifer_le",
+      "linkedin_id": "tGolfT",
+      "facebook_url": "facebook.com/jennifer_le",
+      "facebook_username": "jennifer_le",
+      "facebook_id": "tGolfT",
+      "twitter_url": "twitter.com/jennifer_le",
+      "twitter_username": "jennifer_le",
+      "github_url": "github.com/jennifer_le",
+      "github_username": "jennifer_le",
+      "industry": "dairy",
+      "job_title": "commissioning editor",
+      "job_title_role": null,
+      "job_title_sub_role": null,
+      "job_title_class": null,
+      "job_title_levels": [
+        "director",
+        "director",
+        "director"
+      ],
+      "job_company_id": "qlRVuU7Bo0TtB9Gk6cM0gpHLSg0j",
+      "job_company_name": "newton, richardson and soto",
+      "job_company_website": "newton-richardson-and-soto.com",
+      "job_company_size": "10001+",
+      "job_company_founded": 1992,
+      "job_company_industry": "dairy",
+      "job_company_industry_v2": "sugar and confectionery product manufacturing",
+      "job_company_linkedin_url": "linkedin.com/company/newton-richardson-and-soto",
+      "job_company_linkedin_id": "96768793",
+      "job_company_facebook_url": "facebook.com/newton-richardson-and-soto",
+      "job_company_twitter_url": "twitter.com/newton-richardson-and-soto",
+      "job_company_location_name": "west timothyview, british columbia, canada",
+      "job_company_location_locality": "west timothyview",
+      "job_company_location_metro": "west timothyview",
+      "job_company_location_region": "british columbia",
+      "job_company_location_geo": "-58.1470335,-116.294067",
+      "job_company_location_street_address": "7403 scott prairie",
+      "job_company_location_address_line_2": "apt. 574",
+      "job_company_location_postal_code": "A1A 5A7",
+      "job_company_location_country": "canada",
+      "job_company_location_continent": "north america",
+      "job_last_changed": "2026-09-13",
+      "job_last_verified": "2026-09-13",
+      "job_start_date": "2018-10-08",
+      "location_name": true,
+      "location_locality": true,
+      "location_metro": true,
+      "location_region": true,
+      "location_country": "canada",
+      "location_continent": "north america",
+      "location_street_address": true,
+      "location_address_line_2": "apt. 574",
+      "location_postal_code": true,
+      "location_geo": true,
+      "location_last_updated": "2026-09-13",
+      "interests": [
+        "final",
+        "whom",
+        "care"
+      ],
+      "skills": [
+        "while"
+      ],
+      "location_names": false,
+      "regions": false,
+      "countries": [],
+      "experience": [
+        {
+          "company": {
+            "name": "newton, richardson and soto",
+            "size": "10001+",
+            "id": "qlRVuU7Bo0TtB9Gk6cM0gpHLSg0j",
+            "founded": 1992,
+            "industry": "dairy",
+            "industry_v2": "sugar and confectionery product manufacturing",
+            "location": {
+              "name": "west timothyview, british columbia, canada",
+              "locality": "west timothyview",
+              "region": "british columbia",
+              "metro": "west timothyview",
+              "country": "canada",
+              "continent": "north america",
+              "street_address": "7403 scott prairie",
+              "address_line_2": "apt. 574",
+              "postal_code": "A1A 5A7",
+              "geo": "-58.1470335,-116.294067"
+            },
+            "linkedin_url": "linkedin.com/company/newton-richardson-and-soto",
+            "linkedin_id": "96768793",
+            "facebook_url": "facebook.com/newton-richardson-and-soto",
+            "twitter_url": "twitter.com/newton-richardson-and-soto",
+            "website": "newton-richardson-and-soto.com"
+          },
+          "location_names": [
+            "west timothyview, british columbia, canada"
+          ],
+          "end_date": "2019-04-10",
+          "start_date": "2018-10-08",
+          "title": {
+            "name": "commissioning editor",
+            "class": null,
+            "role": null,
+            "sub_role": null,
+            "levels": [
+              "director",
+              "director",
+              "director"
+            ]
+          },
+          "is_primary": true
+        }
+      ],
+      "education": [],
+      "dataset_version": "v35.2"
+    },
+    {
+      "id": "KsnawTeliOXNIIPixiaptA_0000",
+      "full_name": "ashley armstrong",
+      "first_name": "ashley",
+      "middle_initial": null,
+      "middle_name": null,
+      "last_initial": "a",
+      "last_name": "armstrong",
+      "sex": null,
+      "birth_year": true,
+      "birth_date": true,
+      "linkedin_url": "linkedin.com/in/aa73",
+      "linkedin_username": "aa73",
+      "linkedin_id": "KsnawT",
+      "facebook_url": "facebook.com/aa73",
+      "facebook_username": "aa73",
+      "facebook_id": "KsnawT",
+      "twitter_url": "twitter.com/aa73",
+      "twitter_username": "aa73",
+      "github_url": "github.com/aa73",
+      "github_username": "aa73",
+      "industry": "writing and editing",
+      "job_title": "teacher, primary school",
+      "job_title_role": "education",
+      "job_title_sub_role": "primary_and_secondary",
+      "job_title_class": "services",
+      "job_title_levels": [
+        "vp",
+        "vp",
+        "vp"
+      ],
+      "job_company_id": "xRz8fYUhp2DaczIoJ6ZzZNfOfcXM",
+      "job_company_name": "dunn, zimmerman and kelly",
+      "job_company_website": "dunn-zimmerman-and-kelly.com",
+      "job_company_size": "10001+",
+      "job_company_founded": 1973,
+      "job_company_industry": "writing and editing",
+      "job_company_industry_v2": "racetracks",
+      "job_company_linkedin_url": "linkedin.com/company/dunn-zimmerman-and-kelly",
+      "job_company_linkedin_id": "76850631",
+      "job_company_facebook_url": "facebook.com/dunn-zimmerman-and-kelly",
+      "job_company_twitter_url": "twitter.com/dunn-zimmerman-and-kelly",
+      "job_company_location_name": "jasminestad, quebec, canada",
+      "job_company_location_locality": "jasminestad",
+      "job_company_location_metro": "jasminestad",
+      "job_company_location_region": "quebec",
+      "job_company_location_geo": "63.701262,127.402524",
+      "job_company_location_street_address": "554 michele harbors apt. 123",
+      "job_company_location_address_line_2": "suite 554",
+      "job_company_location_postal_code": "A9A 8A5",
+      "job_company_location_country": "canada",
+      "job_company_location_continent": "north america",
+      "job_last_changed": "2026-09-13",
+      "job_last_verified": "2026-09-13",
+      "job_start_date": "2019-08-11",
+      "location_name": true,
+      "location_locality": true,
+      "location_metro": true,
+      "location_region": true,
+      "location_country": "canada",
+      "location_continent": "north america",
+      "location_street_address": true,
+      "location_address_line_2": "suite 554",
+      "location_postal_code": true,
+      "location_geo": true,
+      "location_last_updated": "2026-09-13",
+      "interests": [
+        "recent"
+      ],
+      "skills": [
+        "church"
+      ],
+      "location_names": true,
+      "regions": true,
+      "countries": [
+        "canada",
+        "canada"
+      ],
+      "experience": [
+        {
+          "company": {
+            "name": "dunn, zimmerman and kelly",
+            "size": "10001+",
+            "id": "xRz8fYUhp2DaczIoJ6ZzZNfOfcXM",
+            "founded": 1973,
+            "industry": "writing and editing",
+            "industry_v2": "racetracks",
+            "location": {
+              "name": "jasminestad, quebec, canada",
+              "locality": "jasminestad",
+              "region": "quebec",
+              "metro": "jasminestad",
+              "country": "canada",
+              "continent": "north america",
+              "street_address": "554 michele harbors apt. 123",
+              "address_line_2": "suite 554",
+              "postal_code": "A9A 8A5",
+              "geo": "63.701262,127.402524"
+            },
+            "linkedin_url": "linkedin.com/company/dunn-zimmerman-and-kelly",
+            "linkedin_id": "76850631",
+            "facebook_url": "facebook.com/dunn-zimmerman-and-kelly",
+            "twitter_url": "twitter.com/dunn-zimmerman-and-kelly",
+            "website": "dunn-zimmerman-and-kelly.com"
+          },
+          "location_names": [
+            "jasminestad, quebec, canada"
+          ],
+          "end_date": "2021-12-11",
+          "start_date": "2019-08-11",
+          "title": {
+            "name": "teacher, primary school",
+            "class": null,
+            "role": "education",
+            "sub_role": "primary_and_secondary",
+            "levels": [
+              "vp",
+              "vp",
+              "vp"
+            ]
+          },
+          "is_primary": true
+        },
+        {
+          "company": {
+            "name": "bond, reed and espinoza",
+            "size": "10001+",
+            "id": "Co0b2HE7qasDzPVC7SUpzeMueaZ8",
+            "founded": 2012,
+            "industry": "alternative medicine",
+            "industry_v2": "business consulting and services",
+            "location": {
+              "name": "north erik, texas, united states",
+              "locality": "north erik",
+              "region": "texas",
+              "metro": "north erik",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "990 jeanne shore apt. 704",
+              "address_line_2": "suite 281",
+              "postal_code": "82656",
+              "geo": "35.5695435,-154.099182"
+            },
+            "linkedin_url": "linkedin.com/company/bond-reed-and-espinoza",
+            "linkedin_id": "91542831",
+            "facebook_url": "facebook.com/bond-reed-and-espinoza",
+            "twitter_url": "twitter.com/bond-reed-and-espinoza",
+            "website": "bond-reed-and-espinoza.com"
+          },
+          "location_names": [
+            "port nathan, british columbia, canada"
+          ],
+          "end_date": "2020-03-27",
+          "start_date": "2019-05-18",
+          "title": {
+            "name": "toxicologist",
+            "class": null,
+            "role": null,
+            "sub_role": null,
+            "levels": [
+              "senior"
+            ]
+          },
+          "is_primary": false
+        },
+        {
+          "company": {
+            "name": "nicholson-reyes",
+            "size": "10001+",
+            "id": "rpj3GRcFizSRjr516CJBzZ9yIFCa",
+            "founded": 2015,
+            "industry": "chemicals",
+            "industry_v2": "technology, information and media",
+            "location": {
+              "name": "lake judyburgh, texas, united states",
+              "locality": "lake judyburgh",
+              "region": "texas",
+              "metro": "lake judyburgh",
+              "country": "united states",
+              "continent": "north america",
+              "street_address": "53857 wright branch",
+              "address_line_2": "apt. 551",
+              "postal_code": "37876",
+              "geo": "5.1634185,152.923311"
+            },
+            "linkedin_url": "linkedin.com/company/nicholson-reyes",
+            "linkedin_id": "60980724",
+            "facebook_url": "facebook.com/nicholson-reyes",
+            "twitter_url": "twitter.com/nicholson-reyes",
+            "website": "nicholson-reyes.com"
+          },
+          "location_names": [
+            "north rachel, california, united states"
+          ],
+          "end_date": "2018-06-20",
+          "start_date": "2018-01-18",
+          "title": {
+            "name": "insurance underwriter",
+            "class": null,
+            "role": "finance",
+            "sub_role": "risk",
+            "levels": [
+              "vp"
+            ]
+          },
+          "is_primary": false
+        }
+      ],
+      "education": [
+        {
+          "school": {
+            "name": "george, lucero and smith",
+            "type": "secondary school",
+            "id": null,
+            "location": {
+              "name": "south aaron, ontario, canada",
+              "locality": "south aaron",
+              "region": "ontario",
+              "country": "canada",
+              "continent": "north america"
+            },
+            "linkedin_url": "linkedin.com/school/george-lucero-and-smith",
+            "facebook_url": "facebook.com/george-lucero-and-smith",
+            "twitter_url": "twitter.com/george-lucero-and-smith",
+            "linkedin_id": "18058986",
+            "website": "george-lucero-and-smith.edu",
+            "domain": "george-lucero-and-smith.edu"
+          },
+          "degrees": [
+            "master of science in industrial engineering"
+          ],
+          "start_date": "2007-11-30",
+          "end_date": "2018-10-22",
+          "majors": [
+            "speech and hearing science"
+          ],
+          "minors": [
+            "police science"
+          ],
+          "gpa": 3.8
+        },
+        {
+          "school": {
+            "name": "andrews plc",
+            "type": "primary school",
+            "id": null,
+            "location": {
+              "name": "curtisborough, california, united states",
+              "locality": "curtisborough",
+              "region": "california",
+              "country": "united states",
+              "continent": "north america"
+            },
+            "linkedin_url": "linkedin.com/school/andrews-plc",
+            "facebook_url": "facebook.com/andrews-plc",
+            "twitter_url": "twitter.com/andrews-plc",
+            "linkedin_id": "23858776",
+            "website": "andrews-plc.edu",
+            "domain": "andrews-plc.edu"
+          },
+          "degrees": [
+            "bachelor of technology"
+          ],
+          "start_date": "2005-05-09",
+          "end_date": "2005-07-26",
+          "majors": [
+            "computer science and engineering",
+            "indonesian",
+            "mechatronics and automation"
+          ],
+          "minors": [
+            "school student counseling",
+            "atmospheric science",
+            "italian language and culture"
+          ],
+          "gpa": 3.1
+        }
+      ],
+      "dataset_version": "v35.2"
+    }
+  ],
+  "total": 3000,
+  "dataset_version": "35.2"
+}

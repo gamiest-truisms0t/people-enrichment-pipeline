@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from enrich_pipeline.enricher import EnrichConfig, Enricher
-from enrich_pipeline.models import InputRow, InvalidRow, LookupResult
+from enrich_pipeline.models import InputRow, InvalidRow, LookupResult, LookupStatus
 from enrich_pipeline.providers.mock import MockProvider
 from enrich_pipeline.schema import TABLES
 from enrich_pipeline.transform import build_tables
@@ -75,3 +75,17 @@ def test_lookup_rows_cover_every_input_including_invalid_ones() -> None:
     assert lookups[2]["credits_consumed"] == 0
     assert lookups[3]["input_last_name"] == "Nguyen"
     assert lookups[3]["error_message"].startswith("first_name")
+
+
+def test_cached_hits_still_populate_a_new_batch() -> None:
+    """A re-upload served entirely from cache must still answer the three questions."""
+    first_batch = _results()
+    john = next(r for r in first_batch if r.status is LookupStatus.MATCHED)
+    cached = john.model_copy(
+        update={"status": LookupStatus.CACHED, "credits_consumed": 0, "attempts": 0}
+    )
+    tables = build_tables([cached], batch_id="b2")
+    assert [p["person_id"] for p in tables["dim_person"]] == ["pdl-mock-0001"]
+    assert len(tables["fact_employment"]) == 3
+    assert tables["fact_lookup"][0]["status"] == "cached"
+    assert tables["fact_lookup"][0]["credits_consumed"] == 0

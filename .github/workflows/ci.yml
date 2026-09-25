@@ -57,7 +57,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           tflint --init
-          for d in infra/bootstrap infra/envs/dev; do
+          for d in infra/bootstrap infra/envs/dev infra/modules/*; do
             tflint --chdir="$d" --config "$GITHUB_WORKSPACE/.tflint.hcl"
           done
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0

@@ -1,0 +1,7 @@
+output "pdl_api_key_parameter_name" {
+  value = aws_ssm_parameter.pdl_api_key.name
+}
+
+output "pdl_api_key_parameter_arn" {
+  value = aws_ssm_parameter.pdl_api_key.arn
+}

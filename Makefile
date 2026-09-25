@@ -111,7 +111,7 @@ tf-lint: ## terraform fmt -check, validate, tflint and checkov over infra/
 	  terraform -chdir=$$d init -backend=false -input=false >/dev/null && terraform -chdir=$$d validate || exit 1; \
 	done
 	@tflint --init >/dev/null
-	@for d in infra/bootstrap infra/envs/dev; do tflint --chdir=$$d --config "$(CURDIR)/.tflint.hcl" || exit 1; done
+	@for d in infra/bootstrap infra/envs/dev infra/modules/*; do tflint --chdir=$$d --config "$(CURDIR)/.tflint.hcl" || exit 1; done
 	checkov --config-file .checkov.yaml
 
 # --- Operating the deployed stack -----------------------------------------------

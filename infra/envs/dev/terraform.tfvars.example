@@ -1,7 +1,8 @@
 # Copy to terraform.tfvars (git-ignored) and fill in. Everything else has a default.
 alert_email = "you@example.com"
 
-# provider_name        = "mock"   # "pdl" from Phase 4
+# provider_name        = "mock"   # "pdl" for People Data Labs (run `make set-api-key` first)
+# pdl_sandbox          = false    # true = PDL's free synthetic sandbox host
 # max_concurrency      = 1
 # max_enrich_credits   = 70
 # max_identify_credits = 20

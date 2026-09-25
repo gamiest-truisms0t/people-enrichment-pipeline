@@ -26,6 +26,12 @@ variable "provider_name" {
   }
 }
 
+variable "pdl_sandbox" {
+  description = "Point the pdl provider at the free synthetic sandbox host instead of production."
+  type        = bool
+  default     = false
+}
+
 variable "max_rows" {
   description = "Row cap per input file (keeps the Step Functions payload small)."
   type        = number
@@ -39,9 +45,9 @@ variable "max_enrich_credits" {
 }
 
 variable "max_identify_credits" {
-  description = "Monthly ceiling for identify credits (billed on every call)."
+  description = "Monthly ceiling for identify credits (billed on every call). The free plan grants only 5 per month; this keeps a reserve."
   type        = number
-  default     = 20
+  default     = 2
 }
 
 variable "identify_min_score" {
@@ -55,8 +61,9 @@ variable "identify_min_margin" {
 }
 
 variable "enrich_min_likelihood" {
-  type    = number
-  default = 6
+  description = "Provider-side match threshold for enrich calls (1-10). PDL scores correct name+company matches of well-known people around 4; 6 discarded most true matches."
+  type        = number
+  default     = 4
 }
 
 variable "location_hint" {

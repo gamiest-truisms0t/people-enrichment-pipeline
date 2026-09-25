@@ -11,7 +11,7 @@ export AWS_PAGER   :=
 UV  ?= uv
 ENV ?= dev
 
-.PHONY: help setup lint fmt test check precommit login whoami clean
+.PHONY: help setup lint fmt test check precommit run query login whoami clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -37,6 +37,15 @@ check: lint test ## Lint + test
 precommit: ## Run every pre-commit hook on the whole tree
 	pre-commit run --all-files
 
+INPUT ?= data/sample/names.csv
+OUT   ?= out
+
+run: ## Run the pipeline locally with the mock provider (INPUT=..., OUT=...)
+	$(UV) run enrich run --input $(INPUT) --provider mock --out $(OUT)
+
+query: ## Answer the brief's three questions against local Parquet with DuckDB
+	$(UV) run enrich query --out $(OUT)
+
 login: ## Refresh the 12-hour AWS CLI session in the browser
 	aws login --profile $(AWS_PROFILE)
 
@@ -53,6 +62,5 @@ clean: ## Remove local build and test artefacts
 # destroy      terraform destroy for infra/envs/$(ENV) (Phase 2)
 # set-api-key  Push ~/.config/people-enrichment/pdl_api_key into SSM (Phase 2)
 # upload       Upload a CSV to the landing bucket to trigger a run (Phase 3)
-# run          Run the pipeline locally with the mock provider (Phase 1)
 # rebuild      Rebuild curated tables from raw/ without spending credits (Phase 3)
 # e2e          Upload the sample file and wait for the execution to finish (Phase 6)

@@ -23,6 +23,8 @@ from enrich_pipeline.schema import TABLES
 Row = dict[str, Any]
 Tables = dict[str, list[Row]]
 
+WITH_PROFILE = frozenset({LookupStatus.MATCHED, LookupStatus.CACHED})
+
 
 def _naive_utc(value: datetime) -> datetime:
     """Parquet/Athena timestamps are stored as naive UTC."""
@@ -155,9 +157,12 @@ def build_tables(
     employment: list[Row] = []
     lookups: list[Row] = []
 
+    # A cached hit carries the profile from an earlier lookup: it cost nothing, but the
+    # person still belongs in this batch's tables. Only results without a profile
+    # (not found, ambiguous, deferred, error) contribute nothing beyond the lookup row.
     for result in results:
         lookups.append(lookup_row(result, batch_id))
-        if result.status is LookupStatus.MATCHED and result.profile is not None:
+        if result.status in WITH_PROFILE and result.profile is not None:
             if result.profile.id in persons:
                 continue
             persons[result.profile.id] = person_row(result, batch_id)

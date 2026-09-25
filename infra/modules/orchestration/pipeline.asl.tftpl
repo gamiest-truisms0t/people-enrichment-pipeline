@@ -1,0 +1,216 @@
+{
+  "Comment": "People-enrichment pipeline: validate the uploaded CSV, enrich each row, build the curated tables. Input: {\"bucket\": \"<landing bucket>\", \"key\": \"incoming/<folder>/<file>.csv\"}",
+  "StartAt": "ValidateInput",
+  "TimeoutSeconds": 3600,
+  "States": {
+    "ValidateInput": {
+      "Type": "Task",
+      "Comment": "Parse and validate the CSV; rows travel inline for the Map, the full parsed input is written to the data bucket.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${validate_input_arn}",
+        "Payload": {
+          "bucket.$": "$.bucket",
+          "key.$": "$.key"
+        }
+      },
+      "ResultSelector": {
+        "batch_id.$": "$.Payload.batch_id",
+        "batch_date.$": "$.Payload.batch_date",
+        "row_count.$": "$.Payload.row_count",
+        "invalid_count.$": "$.Payload.invalid_count",
+        "input_ref.$": "$.Payload.input_ref",
+        "rows.$": "$.Payload.rows"
+      },
+      "ResultPath": "$.batch",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "EnrichRows"
+    },
+    "EnrichRows": {
+      "Type": "Map",
+      "Comment": "One enrich invocation per row. MaxConcurrency caps provider calls per minute; the function itself retries 429/5xx.",
+      "ItemsPath": "$.batch.rows",
+      "MaxConcurrency": ${max_concurrency},
+      "ItemSelector": {
+        "batch_id.$": "$.batch.batch_id",
+        "batch_date.$": "$.batch.batch_date",
+        "row.$": "$$.Map.Item.Value"
+      },
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "EnrichRow",
+        "States": {
+          "EnrichRow": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${enrich_arn}",
+              "Payload.$": "$"
+            },
+            "ResultSelector": {
+              "row_number.$": "$.Payload.row_number",
+              "status.$": "$.Payload.status",
+              "method.$": "$.Payload.method",
+              "credits_consumed.$": "$.Payload.credits_consumed",
+              "attempts.$": "$.Payload.attempts"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0,
+                "JitterStrategy": "FULL"
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "ResultPath": "$.error",
+                "Next": "RowFailed"
+              }
+            ],
+            "End": true
+          },
+          "RowFailed": {
+            "Type": "Pass",
+            "Comment": "A crashed row becomes an error record instead of failing the batch; the curated step still runs.",
+            "Parameters": {
+              "row_number.$": "$.row.row_number",
+              "status": "error",
+              "error.$": "$.error.Error",
+              "cause.$": "$.error.Cause"
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.enriched",
+      "Next": "BuildCurated"
+    },
+    "BuildCurated": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${build_curated_arn}",
+        "Payload": {
+          "batch_id.$": "$.batch.batch_id",
+          "batch_date.$": "$.batch.batch_date"
+        }
+      },
+      "ResultSelector": {
+        "persons.$": "$.Payload.persons",
+        "employment_rows.$": "$.Payload.employment_rows",
+        "credits_spent.$": "$.Payload.credits_spent",
+        "status_counts.$": "$.Payload.status_counts",
+        "manifest_ref.$": "$.Payload.manifest_ref"
+      },
+      "ResultPath": "$.curated",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "Summarize"
+    },
+    "Summarize": {
+      "Type": "Pass",
+      "Parameters": {
+        "batch_id.$": "$.batch.batch_id",
+        "batch_date.$": "$.batch.batch_date",
+        "source.$": "States.Format('s3://{}/{}', $.bucket, $.key)",
+        "row_count.$": "$.batch.row_count",
+        "invalid_count.$": "$.batch.invalid_count",
+        "row_errors.$": "States.ArrayLength($.enriched[?(@.status == 'error')])",
+        "curated.$": "$.curated"
+      },
+      "ResultPath": "$.summary",
+      "Next": "AnyRowErrors"
+    },
+    "AnyRowErrors": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.summary.row_errors",
+          "NumericGreaterThan": 0,
+          "Next": "NotifyPartialFailure"
+        }
+      ],
+      "Default": "Succeeded"
+    },
+    "NotifyPartialFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${alerts_topic_arn}",
+        "Subject": "People-enrichment: batch completed with row errors",
+        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows. Persons curated: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.curated.persons, $.summary.curated.manifest_ref, $$.Execution.Id)"
+      },
+      "ResultPath": null,
+      "Next": "Succeeded"
+    },
+    "Succeeded": {
+      "Type": "Succeed",
+      "OutputPath": "$.summary"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${alerts_topic_arn}",
+        "Subject": "People-enrichment: pipeline execution FAILED",
+        "Message.$": "States.Format('Execution {} failed for s3://{}/{}. Error: {}. Cause: {}', $$.Execution.Id, $.bucket, $.key, $.error.Error, $.error.Cause)"
+      },
+      "ResultPath": null,
+      "Next": "Failed"
+    },
+    "Failed": {
+      "Type": "Fail",
+      "ErrorPath": "$.error.Error",
+      "CausePath": "$.error.Cause"
+    }
+  }
+}

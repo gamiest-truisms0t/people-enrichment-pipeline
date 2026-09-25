@@ -455,7 +455,13 @@ with a commit/tag and a working state you could submit if you ran out of time.
    *Done when:* `terraform apply` from clean, `terraform destroy`, `apply` again all succeed;
    checkov/tflint clean. Tag `v0.1.0-infra`.
 
-### Phase 3 — Orchestration and trigger (2–3 h)
+### Phase 3 — Orchestration and trigger (2–3 h) — ✅ done 2026-09-25, `v0.1.0`
+
+> Deviations: the EventBridge target uses an input transformer so the state machine
+> input is always `{bucket, key}`; row-level crashes are caught into `error` records and
+> the batch completes with an SNS "completed with row errors" notice; execution logging
+> excludes state payloads (PII), documented as an inline checkov skip; the alerts topic
+> is unencrypted because CloudWatch alarms cannot publish to an AWS-managed-key topic.
 
 1. ASL definition as a `templatefile()` with Retry/Catch/MaxConcurrency; state machine
    with CloudWatch logging and X-Ray.

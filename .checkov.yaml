@@ -1,7 +1,7 @@
 # checkov configuration. Every skip below is a deliberate, documented decision for a
 # free-tier proof of concept; PLAN.md sections 3 and 5.3 hold the reasoning.
-directory:
-  - infra
+# The directory is passed on the command line (`-d infra` in the Makefile and CI, one
+# changed directory at a time from the pre-commit hook) so the same skips apply everywhere.
 framework:
   - terraform
 quiet: true
@@ -25,3 +25,5 @@ skip-check:
   - CKV_AWS_272   # code signing: out of scope for a POC
   # SSM
   - CKV_AWS_337   # SecureString with a CMK: the AWS-managed aws/ssm key is used
+  # SNS
+  - CKV_AWS_26    # topic encryption: CloudWatch alarms cannot publish to an AWS-managed-key topic and a CMK costs $1/month; the topic carries no registrant data

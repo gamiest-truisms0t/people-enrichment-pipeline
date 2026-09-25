@@ -12,7 +12,8 @@ UV  ?= uv
 ENV ?= dev
 
 .PHONY: help setup lint fmt test check precommit run query login whoami clean \
-        package bootstrap init plan apply destroy tf-lint set-api-key upload smoke
+        package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
+        e2e executions rebuild asl-validate
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -112,7 +113,7 @@ tf-lint: ## terraform fmt -check, validate, tflint and checkov over infra/
 	done
 	@tflint --init >/dev/null
 	@for d in infra/bootstrap infra/envs/dev infra/modules/*; do tflint --chdir=$$d --config "$(CURDIR)/.tflint.hcl" || exit 1; done
-	checkov --config-file .checkov.yaml
+	checkov --config-file .checkov.yaml -d infra
 
 # --- Operating the deployed stack -----------------------------------------------
 set-api-key: ## Push ~/.config/people-enrichment/pdl_api_key into the SSM SecureString
@@ -126,6 +127,24 @@ upload: ## Copy INPUT to the landing bucket under incoming/<timestamp>/
 smoke: ## Drive validate -> enrich -> build-curated by hand in AWS on INPUT
 	scripts/smoke.sh $(INPUT)
 
-# --- Later phases (see PLAN.md) ------------------------------------------------
-# rebuild      Rebuild curated tables from raw/ without spending credits (Phase 3)
-# e2e          Upload the sample file and wait for the execution to finish (Phase 6)
+e2e: ## Upload INPUT and follow the Step Functions execution the upload triggers
+	scripts/e2e.sh $(INPUT)
+
+executions: ## List the five most recent pipeline executions
+	aws stepfunctions list-executions --state-machine-arn "$$($(TF_ENV) output -raw state_machine_arn)" \
+	  --max-results 5 --no-paginate --query 'executions[].[status,startDate,name]' --output table
+
+rebuild: ## Rebuild the curated tables for BATCH=<batch_id> from stored results (no provider calls)
+	@test -n "$(BATCH)" || { echo "usage: make rebuild BATCH=<batch_id>"; exit 1; }
+	aws lambda invoke --function-name "$$($(TF_ENV) output -json function_names | jq -r .build_curated)" \
+	  --cli-binary-format raw-in-base64-out --payload '{"batch_id":"$(BATCH)"}' /dev/stdout
+
+asl-validate: ## Validate the state machine definition with the Step Functions API (renders the template with dummy ARNs)
+	@mkdir -p build
+	@sed -e 's/$${validate_input_arn}/arn:aws:lambda:ap-southeast-1:123456789012:function:validate/' \
+	     -e 's/$${enrich_arn}/arn:aws:lambda:ap-southeast-1:123456789012:function:enrich/' \
+	     -e 's/$${build_curated_arn}/arn:aws:lambda:ap-southeast-1:123456789012:function:build/' \
+	     -e 's/$${alerts_topic_arn}/arn:aws:sns:ap-southeast-1:123456789012:alerts/' \
+	     -e 's/$${max_concurrency}/1/' \
+	     infra/modules/orchestration/pipeline.asl.tftpl > build/pipeline.asl.tftpl
+	aws stepfunctions validate-state-machine-definition --type STANDARD --definition file://build/pipeline.asl.tftpl

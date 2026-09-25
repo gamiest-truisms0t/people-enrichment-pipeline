@@ -120,7 +120,7 @@ module "fn_validate_input" {
   policy_json            = data.aws_iam_policy_document.validate_input.json
   log_retention_days     = var.log_retention_days
   dead_letter_target_arn = aws_sqs_queue.lambda_dlq.arn
-  alarm_actions          = var.alarm_actions
+  alarm_actions          = [aws_sns_topic.alerts.arn]
 }
 
 module "fn_enrich" {
@@ -137,7 +137,7 @@ module "fn_enrich" {
   policy_json            = data.aws_iam_policy_document.enrich.json
   log_retention_days     = var.log_retention_days
   dead_letter_target_arn = aws_sqs_queue.lambda_dlq.arn
-  alarm_actions          = var.alarm_actions
+  alarm_actions          = [aws_sns_topic.alerts.arn]
 }
 
 module "fn_build_curated" {
@@ -155,5 +155,5 @@ module "fn_build_curated" {
   policy_json            = data.aws_iam_policy_document.build_curated.json
   log_retention_days     = var.log_retention_days
   dead_letter_target_arn = aws_sqs_queue.lambda_dlq.arn
-  alarm_actions          = var.alarm_actions
+  alarm_actions          = [aws_sns_topic.alerts.arn]
 }

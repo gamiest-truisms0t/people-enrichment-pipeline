@@ -33,8 +33,29 @@ logger = Logger(service="enrich")
 metrics = Metrics(namespace="PeopleEnrichment", service="enrich")
 
 
+PLACEHOLDER_PREFIX = "PLACEHOLDER"
+
+
+def provider_api_key(settings: Settings) -> str | None:
+    """Fetch the provider key from SSM (cached in-process for 5 minutes); None for mock."""
+    if settings.provider != "pdl":
+        return None
+    if not settings.api_key_param:
+        raise RuntimeError("PROVIDER=pdl requires PDL_API_KEY_PARAM")
+    from aws_lambda_powertools.utilities.parameters import get_parameter
+
+    key = get_parameter(settings.api_key_param, decrypt=True, max_age=300)
+    if not key or str(key).startswith(PLACEHOLDER_PREFIX):
+        raise RuntimeError(
+            f"{settings.api_key_param} still holds the placeholder; run `make set-api-key`"
+        )
+    return str(key)
+
+
 def build_enricher(settings: Settings, *, batch_date: str, batch_id: str) -> Enricher:
-    provider = make_provider(settings.provider)
+    provider = make_provider(
+        settings.provider, api_key=provider_api_key(settings), sandbox=settings.pdl_sandbox
+    )
     table = dynamodb_resource().Table(settings.state_table)
     return Enricher(
         provider,
@@ -42,7 +63,10 @@ def build_enricher(settings: Settings, *, batch_date: str, batch_id: str) -> Enr
             identify_min_score=settings.identify_min_score,
             identify_min_margin=settings.identify_min_margin,
             enrich_min_likelihood=settings.enrich_min_likelihood,
-            max_wait_seconds=30.0,
+            # Worst case 2 waits x 20 s plus call time stays well inside the 90 s timeout;
+            # Step Functions retries the invocation if the row still needs more attempts.
+            max_attempts=3,
+            max_wait_seconds=20.0,
             max_enrich_credits=settings.max_enrich_credits,
             max_identify_credits=settings.max_identify_credits,
             location_hint=settings.location_hint,

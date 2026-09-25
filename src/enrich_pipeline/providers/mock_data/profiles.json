@@ -1,0 +1,298 @@
+{
+  "_comment": "Synthetic people and companies in the People Data Labs response shape. Nothing here is real.",
+  "profiles": {
+    "pdl-mock-0001": {
+      "id": "pdl-mock-0001",
+      "full_name": "john doe",
+      "first_name": "john",
+      "last_name": "doe",
+      "linkedin_url": "linkedin.com/in/john-doe-mock",
+      "location_name": true,
+      "location_country": "singapore",
+      "job_title": "senior data engineer",
+      "job_title_role": "engineering",
+      "job_company_name": "northwind analytics",
+      "job_company_industry": "information technology and services",
+      "inferred_years_experience": 9,
+      "experience": [
+        {
+          "company": {
+            "name": "northwind analytics",
+            "id": "northwind-analytics",
+            "website": "northwind-analytics.example",
+            "industry": "information technology and services",
+            "size": "51-200",
+            "linkedin_url": "linkedin.com/company/northwind-analytics",
+            "location": {"country": "singapore"}
+          },
+          "title": {
+            "name": "senior data engineer",
+            "role": "engineering",
+            "sub_role": "data_engineering",
+            "levels": ["senior", "senior"]
+          },
+          "start_date": "2022-03",
+          "end_date": null,
+          "is_primary": true
+        },
+        {
+          "company": {
+            "name": "contoso logistics",
+            "id": "contoso-logistics",
+            "website": "contoso-logistics.example",
+            "industry": "logistics and supply chain",
+            "size": "1001-5000",
+            "linkedin_url": "linkedin.com/company/contoso-logistics",
+            "location": {"country": "singapore"}
+          },
+          "title": {
+            "name": "data engineer",
+            "role": "engineering",
+            "sub_role": "data_engineering",
+            "levels": []
+          },
+          "start_date": "2019-01",
+          "end_date": "2022-02",
+          "is_primary": false
+        },
+        {
+          "company": {
+            "name": "fabrikam retail",
+            "id": "fabrikam-retail",
+            "website": null,
+            "industry": "retail",
+            "size": "201-500",
+            "linkedin_url": null,
+            "location": {"country": "malaysia"}
+          },
+          "title": {
+            "name": "business intelligence analyst",
+            "role": "operations",
+            "sub_role": "business_intelligence",
+            "levels": ["entry"]
+          },
+          "start_date": "2016-07",
+          "end_date": "2018-12",
+          "is_primary": false
+        }
+      ]
+    },
+    "pdl-mock-0002": {
+      "id": "pdl-mock-0002",
+      "full_name": "jane smith",
+      "first_name": "jane",
+      "last_name": "smith",
+      "linkedin_url": "linkedin.com/in/jane-smith-mock",
+      "location_name": "san francisco, california, united states",
+      "location_country": "united states",
+      "job_title": "head of product",
+      "job_title_role": "product",
+      "job_company_name": "globex corporation",
+      "job_company_industry": "computer software",
+      "inferred_years_experience": 8,
+      "experience": [
+        {
+          "company": {
+            "name": "globex corporation",
+            "id": "globex-corporation",
+            "website": "globex.example",
+            "industry": "computer software",
+            "size": "501-1000",
+            "linkedin_url": "linkedin.com/company/globex-corporation",
+            "location": {"country": "united states"}
+          },
+          "title": {
+            "name": "head of product",
+            "role": "product",
+            "sub_role": "product_management",
+            "levels": ["director"]
+          },
+          "start_date": "2020-05",
+          "end_date": null,
+          "is_primary": true
+        },
+        {
+          "company": {
+            "name": "initech",
+            "id": "initech",
+            "website": "initech.example",
+            "industry": "computer software",
+            "size": "201-500",
+            "linkedin_url": "linkedin.com/company/initech",
+            "location": {"country": "united states"}
+          },
+          "title": {
+            "name": "product manager",
+            "role": "product",
+            "sub_role": "product_management",
+            "levels": ["manager"]
+          },
+          "start_date": "2017-09",
+          "end_date": "2020-04",
+          "is_primary": false
+        }
+      ]
+    },
+    "pdl-mock-0002b": {
+      "id": "pdl-mock-0002b",
+      "full_name": "jane smith",
+      "first_name": "jane",
+      "last_name": "smith",
+      "linkedin_url": "linkedin.com/in/jane-smith-rn-mock",
+      "location_name": true,
+      "location_country": "united kingdom",
+      "job_title": "registered nurse",
+      "job_title_role": "health",
+      "job_company_name": "st mary hospital",
+      "job_company_industry": "hospital & health care",
+      "inferred_years_experience": 12,
+      "experience": [
+        {
+          "company": {
+            "name": "st mary hospital",
+            "id": "st-mary-hospital",
+            "website": null,
+            "industry": "hospital & health care",
+            "size": "1001-5000",
+            "linkedin_url": null,
+            "location": {"country": "united kingdom"}
+          },
+          "title": {"name": "registered nurse", "role": "health", "sub_role": null, "levels": []},
+          "start_date": "2013-02",
+          "end_date": null,
+          "is_primary": true
+        }
+      ]
+    },
+    "pdl-mock-0003a": {
+      "id": "pdl-mock-0003a",
+      "full_name": "alex lee",
+      "first_name": "alex",
+      "last_name": "lee",
+      "linkedin_url": "linkedin.com/in/alex-lee-robotics-mock",
+      "location_name": true,
+      "location_country": "australia",
+      "job_title": "mechanical engineer",
+      "job_title_role": "engineering",
+      "job_company_name": "acme robotics",
+      "job_company_industry": "industrial automation",
+      "inferred_years_experience": 5,
+      "experience": [
+        {
+          "company": {
+            "name": "acme robotics",
+            "id": "acme-robotics",
+            "website": "acme-robotics.example",
+            "industry": "industrial automation",
+            "size": "51-200",
+            "linkedin_url": "linkedin.com/company/acme-robotics",
+            "location": {"country": "australia"}
+          },
+          "title": {
+            "name": "mechanical engineer",
+            "role": "engineering",
+            "sub_role": "mechanical",
+            "levels": []
+          },
+          "start_date": "2021-01",
+          "end_date": null,
+          "is_primary": true
+        }
+      ]
+    },
+    "pdl-mock-0003b": {
+      "id": "pdl-mock-0003b",
+      "full_name": "alex lee",
+      "first_name": "alex",
+      "last_name": "lee",
+      "linkedin_url": "linkedin.com/in/alex-lee-sales-mock",
+      "location_name": true,
+      "location_country": "singapore",
+      "job_title": "account executive",
+      "job_title_role": "sales",
+      "job_company_name": "wonka industries",
+      "job_company_industry": "food & beverages",
+      "inferred_years_experience": 4,
+      "experience": [
+        {
+          "company": {
+            "name": "wonka industries",
+            "id": "wonka-industries",
+            "website": "wonka.example",
+            "industry": "food & beverages",
+            "size": "5001-10000",
+            "linkedin_url": "linkedin.com/company/wonka-industries",
+            "location": {"country": "singapore"}
+          },
+          "title": {"name": "account executive", "role": "sales", "sub_role": "accounts", "levels": []},
+          "start_date": "2022-06",
+          "end_date": null,
+          "is_primary": true
+        }
+      ]
+    },
+    "pdl-mock-0003c": {
+      "id": "pdl-mock-0003c",
+      "full_name": "alexander lee",
+      "first_name": "alexander",
+      "last_name": "lee",
+      "linkedin_url": "linkedin.com/in/alexander-lee-law-mock",
+      "location_name": true,
+      "location_country": "hong kong",
+      "job_title": "partner",
+      "job_title_role": "legal",
+      "job_company_name": "lee & partners",
+      "job_company_industry": "law practice",
+      "inferred_years_experience": 20,
+      "experience": [
+        {
+          "company": {
+            "name": "lee & partners",
+            "id": "lee-and-partners",
+            "website": null,
+            "industry": "law practice",
+            "size": "11-50",
+            "linkedin_url": null,
+            "location": {"country": "hong kong"}
+          },
+          "title": {"name": "partner", "role": "legal", "sub_role": null, "levels": ["partner"]},
+          "start_date": "2010-01",
+          "end_date": null,
+          "is_primary": true
+        }
+      ]
+    }
+  },
+  "scenarios": {
+    "john doe": {
+      "identify": [{"id": "pdl-mock-0001", "match_score": 88}],
+      "enrich": {"id": "pdl-mock-0001", "likelihood": 8}
+    },
+    "jane smith": {
+      "identify": [
+        {"id": "pdl-mock-0002", "match_score": 90},
+        {"id": "pdl-mock-0002b", "match_score": 45}
+      ],
+      "enrich": {"id": "pdl-mock-0002", "likelihood": 9}
+    },
+    "alex lee": {
+      "identify": [
+        {"id": "pdl-mock-0003a", "match_score": 62},
+        {"id": "pdl-mock-0003b", "match_score": 58},
+        {"id": "pdl-mock-0003c", "match_score": 40}
+      ]
+    },
+    "josé garcía": {"rate_limit_first": true},
+    "budget exhausted": {"payment_required": true},
+    "server error": {"server_error": true},
+    "network failure": {"transport_error": true}
+  },
+  "by_email": {
+    "john.doe@example.com": "john doe",
+    "jane.smith@example.com": "jane smith"
+  },
+  "by_profile": {
+    "linkedin.com/in/john-doe-mock": "john doe",
+    "linkedin.com/in/jane-smith-mock": "jane smith"
+  }
+}

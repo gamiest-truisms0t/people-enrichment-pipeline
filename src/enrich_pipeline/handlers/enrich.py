@@ -1,0 +1,114 @@
+"""Lambda 2/3: enrich one input row.
+
+Input  : {"batch_id", "batch_date", "row": InputRow}
+Output : a compact summary; the full LookupResult is written to
+         results/batch_id=<id>/row=<n>.json and the raw provider response to raw/.
+State  : DynamoDB holds the idempotency cache and the monthly credit budget, so
+         every concurrent invocation shares one view of what has been paid for.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from aws_lambda_powertools import Logger, Metrics
+from aws_lambda_powertools.metrics import MetricUnit
+from aws_lambda_powertools.utilities.typing import LambdaContext
+
+from enrich_pipeline.aws.dynamo import DynamoBudget, DynamoCache
+from enrich_pipeline.aws.s3 import put_json
+from enrich_pipeline.enricher import EnrichConfig, Enricher
+from enrich_pipeline.handlers.common import (
+    METRIC_BY_STATUS,
+    Settings,
+    dynamodb_resource,
+    result_key,
+    s3_client,
+)
+from enrich_pipeline.models import InputRow
+from enrich_pipeline.providers.factory import make_provider
+from enrich_pipeline.raw_store import S3RawStore
+
+logger = Logger(service="enrich")
+metrics = Metrics(namespace="PeopleEnrichment", service="enrich")
+
+
+def build_enricher(settings: Settings, *, batch_date: str, batch_id: str) -> Enricher:
+    provider = make_provider(settings.provider)
+    table = dynamodb_resource().Table(settings.state_table)
+    return Enricher(
+        provider,
+        config=EnrichConfig(
+            identify_min_score=settings.identify_min_score,
+            identify_min_margin=settings.identify_min_margin,
+            enrich_min_likelihood=settings.enrich_min_likelihood,
+            max_wait_seconds=30.0,
+            max_enrich_credits=settings.max_enrich_credits,
+            max_identify_credits=settings.max_identify_credits,
+            location_hint=settings.location_hint,
+        ),
+        cache=DynamoCache(table),
+        budget=DynamoBudget(
+            table,
+            provider=provider.name,
+            month=batch_date[:7],
+            limits={
+                "enrich": settings.max_enrich_credits,
+                "identify": settings.max_identify_credits,
+            },
+        ),
+        raw_store=S3RawStore(
+            settings.data_bucket,
+            provider=provider.name,
+            batch_date=batch_date,
+            batch_id=batch_id,
+            client=s3_client(),
+        ),
+    )
+
+
+@logger.inject_lambda_context(log_event=False)
+@metrics.log_metrics(capture_cold_start_metric=True)
+def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
+    settings = Settings.from_env()
+    batch_id = event["batch_id"]
+    batch_date = event["batch_date"]
+    row = InputRow.model_validate(event["row"])
+
+    enricher = build_enricher(settings, batch_date=batch_date, batch_id=batch_id)
+    result = enricher.lookup(row)
+
+    result_ref = put_json(
+        s3_client(),
+        settings.data_bucket,
+        result_key(batch_id, row.row_number),
+        result.model_dump(mode="json"),
+    )
+
+    metrics.add_metric(name=METRIC_BY_STATUS[result.status], unit=MetricUnit.Count, value=1)
+    metrics.add_metric(name="CreditsSpent", unit=MetricUnit.Count, value=result.credits_consumed)
+    logger.info(
+        "enriched row",
+        extra={
+            "batch_id": batch_id,
+            "row_number": row.row_number,
+            "status": result.status.value,
+            "method": result.method.value if result.method else None,
+            "credits": result.credits_consumed,
+            "attempts": result.attempts,
+            "http_status": result.http_status,
+        },
+    )
+    return {
+        "batch_id": batch_id,
+        "row_number": row.row_number,
+        "status": result.status.value,
+        "method": result.method.value if result.method else None,
+        "person_id": result.person_id,
+        "likelihood": result.likelihood,
+        "credits_consumed": result.credits_consumed,
+        "http_status": result.http_status,
+        "attempts": result.attempts,
+        "result_ref": result_ref,
+        "raw_ref": result.raw_ref,
+    }

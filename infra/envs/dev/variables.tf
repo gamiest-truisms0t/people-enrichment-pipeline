@@ -1,0 +1,101 @@
+variable "project" {
+  description = "Project slug used in resource names and tags."
+  type        = string
+  default     = "people-enrichment"
+}
+
+variable "environment" {
+  description = "Environment name; also the state key prefix."
+  type        = string
+  default     = "dev"
+}
+
+variable "region" {
+  type    = string
+  default = "ap-southeast-1"
+}
+
+variable "provider_name" {
+  description = "Enrichment provider the enrich function uses: mock (Phases 2-3) or pdl (Phase 4)."
+  type        = string
+  default     = "mock"
+
+  validation {
+    condition     = contains(["mock", "pdl"], var.provider_name)
+    error_message = "provider_name must be mock or pdl."
+  }
+}
+
+variable "max_rows" {
+  description = "Row cap per input file (keeps the Step Functions payload small)."
+  type        = number
+  default     = 500
+}
+
+variable "max_enrich_credits" {
+  description = "Monthly ceiling for enrich credits (billed only on a match). Below the free 100."
+  type        = number
+  default     = 70
+}
+
+variable "max_identify_credits" {
+  description = "Monthly ceiling for identify credits (billed on every call)."
+  type        = number
+  default     = 20
+}
+
+variable "identify_min_score" {
+  type    = number
+  default = 70
+}
+
+variable "identify_min_margin" {
+  type    = number
+  default = 20
+}
+
+variable "enrich_min_likelihood" {
+  type    = number
+  default = 6
+}
+
+variable "location_hint" {
+  description = "Optional event location appended to name-only lookups (e.g. \"Singapore\")."
+  type        = string
+  default     = ""
+}
+
+variable "log_retention_days" {
+  type    = number
+  default = 14
+}
+
+variable "raw_retention_days" {
+  description = "Lifecycle expiry for raw/ objects in the data bucket (dev only)."
+  type        = number
+  default     = 90
+}
+
+variable "force_destroy_buckets" {
+  description = "Allow terraform destroy to empty the buckets. Keep true in dev, false anywhere real."
+  type        = bool
+  default     = true
+}
+
+variable "lambda_package_dir" {
+  description = "Directory produced by `make package`, relative to this stack."
+  type        = string
+  default     = "../../../build/lambda"
+}
+
+variable "pandas_layer_arn" {
+  description = "AWS-managed AWS SDK for pandas layer (pyarrow) for the build-curated function."
+  type        = string
+  default     = "arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python313-Arm64:16"
+}
+
+variable "alarm_actions" {
+  description = "SNS topic ARNs notified by the Lambda error alarms (Phase 3 wires the topic)."
+  type        = list(string)
+  default     = []
+}

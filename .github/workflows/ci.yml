@@ -32,5 +32,34 @@ jobs:
       - name: Unit tests
         run: uv run pytest -m "not integration"
 
-  # Phase 2 adds a `terraform` job here: terraform fmt -check, validate, tflint, checkov
-  # over infra/.
+  terraform:
+    name: terraform fmt / validate / tflint / checkov
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.4"
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@1cf010d3c7aef302051ccdb68c14c5dc2efa34ef # v6.3.1
+        with:
+          tflint_version: v0.64.0
+      - name: terraform fmt
+        run: terraform fmt -check -recursive infra
+      - name: terraform validate
+        run: |
+          for d in infra/bootstrap infra/envs/dev; do
+            terraform -chdir="$d" init -backend=false -input=false >/dev/null
+            terraform -chdir="$d" validate
+          done
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init
+          for d in infra/bootstrap infra/envs/dev infra/modules/*; do
+            tflint --chdir="$d" --config "$GITHUB_WORKSPACE/.tflint.hcl"
+          done
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: checkov
+        run: uvx checkov --config-file .checkov.yaml

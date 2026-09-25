@@ -398,7 +398,11 @@ Practices to actually follow (and mention in the README):
 Estimates assume focused evenings; total roughly **17–24 hours**. Each phase ends
 with a commit/tag and a working state you could submit if you ran out of time.
 
-### Phase 0 — Accounts, tooling, skeleton (2–3 h)
+### Phase 0 — Accounts, tooling, skeleton (2–3 h) — ✅ done 2026-09-25
+
+> Deviations: the CLI signs in with the browser-based `aws login` (12-hour sessions, no
+> access keys) instead of `aws configure sso`; IAM Identity Center was skipped because
+> enabling Organizations would convert the Free plan to Paid.
 
 1. **Local tooling** (or Codespaces/CloudShell, see 2.3): Homebrew → `terraform` 1.16.x
    (or `tfenv`; OpenTofu 1.12 is a drop-in if you prefer MPL licensing), `awscli`, `gh`,
@@ -416,7 +420,7 @@ with a commit/tag and a working state you could submit if you ran out of time.
    *Done when:* CI is green on an empty project, `terraform version` and
    `aws sts get-caller-identity` work locally.
 
-### Phase 1 — Domain model and local pipeline with the mock provider (3–4 h)
+### Phase 1 — Domain model and local pipeline with the mock provider (3–4 h) — ✅ done 2026-09-25, `v0.0.1`
 
 1. pydantic models for input rows and the provider's person schema (fields in section 6).
 2. `normalize.py` (+ tests): NFKC, casefold, whitespace, `lookup_key` hashing.
@@ -426,7 +430,14 @@ with a commit/tag and a working state you could submit if you ran out of time.
    writes local Parquet; verify the three questions with DuckDB locally.
    *Done when:* the three SQL queries return correct answers against local Parquet. Tag `v0.0.1`.
 
-### Phase 2 — Terraform foundation and Lambda deployment (3–4 h)
+### Phase 2 — Terraform foundation and Lambda deployment (3–4 h) — ✅ done 2026-09-25, `v0.1.0-infra`
+
+> Deviations: Powertools is vendored into the 5 MB deployment package (pinned by
+> `uv.lock`) instead of attached as a layer, so only `build-curated` carries a layer
+> (AWS SDK for pandas, for pyarrow); the cache and budget are DynamoDB implementations
+> of the same protocols the CLI uses in memory; each function also gets an SQS dead-letter
+> queue target and X-Ray tracing. The account's Lambda concurrency quota is 10, so no
+> reserved concurrency is set; Step Functions caps parallelism in Phase 3.
 
 1. `infra/bootstrap`: state bucket (versioned, encrypted, public access blocked).
 2. `envs/dev` backend (`use_lockfile = true`) + `modules/storage` (landing + data buckets

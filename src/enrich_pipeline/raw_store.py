@@ -36,6 +36,29 @@ class LocalRawStore:
         return key
 
 
+class S3RawStore:
+    """Same layout as LocalRawStore, one object per lookup, in the data bucket."""
+
+    def __init__(
+        self, bucket: str, *, provider: str, batch_date: str, batch_id: str, client: Any
+    ) -> None:
+        self.bucket = bucket
+        self.provider = provider
+        self.batch_date = batch_date
+        self.batch_id = batch_id
+        self.client = client
+
+    def write(self, *, lookup_key: str, record: dict[str, Any]) -> str:
+        key = raw_key(self.provider, self.batch_date, self.batch_id, lookup_key)
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=json.dumps(record, sort_keys=True, default=str).encode("utf-8"),
+            ContentType="application/json",
+        )
+        return f"s3://{self.bucket}/{key}"
+
+
 class NullRawStore:
     def write(self, *, lookup_key: str, record: dict[str, Any]) -> str:
         return ""

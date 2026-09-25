@@ -1,0 +1,27 @@
+# checkov configuration. Every skip below is a deliberate, documented decision for a
+# free-tier proof of concept; PLAN.md sections 3 and 5.3 hold the reasoning.
+directory:
+  - infra
+framework:
+  - terraform
+quiet: true
+compact: true
+download-external-modules: false
+skip-check:
+  # S3
+  - CKV_AWS_18    # access logging: needs a log bucket that itself needs logging; not for a dev POC
+  - CKV_AWS_144   # cross-region replication: single-region POC
+  - CKV_AWS_145   # KMS CMK on S3: SSE-S3 is sufficient here and a CMK costs $1/month
+  # DynamoDB
+  - CKV_AWS_119   # KMS CMK on DynamoDB: AWS-owned key, same cost reasoning
+  - CKV2_AWS_16   # autoscaling on provisioned capacity: fixed 5/5 stays inside the always-free 25/25
+  # CloudWatch Logs
+  - CKV_AWS_158   # KMS CMK on log groups
+  - CKV_AWS_338   # retention >= 1 year: 14 days in dev by design (cost, PII minimisation)
+  # Lambda
+  - CKV_AWS_117   # Lambda inside a VPC: outbound-only HTTPS; a VPC needs a NAT gateway (PLAN.md D11)
+  - CKV_AWS_115   # reserved concurrency: the new account's quota is 10; Step Functions caps concurrency (Phase 3)
+  - CKV_AWS_173   # env vars encrypted with a CMK: no secrets in env vars, the key is in SSM
+  - CKV_AWS_272   # code signing: out of scope for a POC
+  # SSM
+  - CKV_AWS_337   # SecureString with a CMK: the AWS-managed aws/ssm key is used

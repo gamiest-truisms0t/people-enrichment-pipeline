@@ -47,13 +47,12 @@ QUESTIONS: dict[str, str] = {
 
 
 def make_provider(name: str) -> Provider:
-    if name == "mock":
-        from enrich_pipeline.providers.mock import MockProvider
+    from enrich_pipeline.providers.factory import make_provider as _make
 
-        return MockProvider()
-    if name == "pdl":
-        raise SystemExit("the 'pdl' provider arrives in Phase 4; use --provider mock for now")
-    raise SystemExit(f"unknown provider {name!r}")
+    try:
+        return _make(name)
+    except (NotImplementedError, ValueError) as exc:
+        raise SystemExit(str(exc)) from None
 
 
 def build_parser() -> argparse.ArgumentParser:

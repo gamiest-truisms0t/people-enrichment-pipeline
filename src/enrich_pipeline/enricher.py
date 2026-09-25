@@ -4,8 +4,11 @@
 
 Strong identifiers use the provider's enrich call (billed only on a match).
 Name-only rows use identify (billed on every call), so it has a separate budget
-and a confidence gate. Retries handle 429/5xx; a 402 flips the provider to
-exhausted so the rest of the batch is deferred rather than failed.
+and a confidence gate. Retries handle 429/5xx; a 402 marks the budget exhausted
+so the rest of the batch is deferred rather than failed.
+
+Cache, budget and raw store are protocols: in-memory/local for the CLI and
+tests, DynamoDB/S3 in Lambda (see `enrich_pipeline.aws`).
 """
 
 from __future__ import annotations
@@ -19,9 +22,20 @@ from typing import Any, Protocol
 
 from pydantic import ValidationError
 
-from enrich_pipeline.models import InputRow, LookupMethod, LookupResult, LookupStatus, PersonProfile
+from enrich_pipeline.models import (
+    InputRow,
+    LookupMethod,
+    LookupResult,
+    LookupStatus,
+    PersonProfile,
+)
 from enrich_pipeline.normalize import lookup_key
-from enrich_pipeline.providers.base import Provider, ProviderError, ProviderResponse, ResponseKind
+from enrich_pipeline.providers.base import (
+    Provider,
+    ProviderError,
+    ProviderResponse,
+    ResponseKind,
+)
 from enrich_pipeline.raw_store import NullRawStore, RawStore
 
 CACHEABLE = frozenset({LookupStatus.MATCHED, LookupStatus.NOT_FOUND, LookupStatus.AMBIGUOUS})
@@ -39,12 +53,28 @@ class EnrichConfig:
     location_hint: str | None = None
 
 
+class Budget(Protocol):
+    """Credit ceilings per billable call kind plus the provider-exhausted marker."""
+
+    def allows(self, kind: str) -> bool: ...
+
+    def record(self, kind: str, credits: int) -> None: ...
+
+    def mark_exhausted(self) -> None: ...
+
+    def is_exhausted(self) -> bool: ...
+
+    @property
+    def total_spent(self) -> int: ...
+
+
 class CreditBudget:
-    """Per-run credit ceilings. Phase 2 backs this with a DynamoDB monthly counter."""
+    """In-memory budget for a single local run."""
 
     def __init__(self, *, enrich: int | None = None, identify: int | None = None) -> None:
         self.limits: dict[str, int | None] = {"enrich": enrich, "identify": identify}
         self.spent: Counter[str] = Counter()
+        self._exhausted = False
 
     @classmethod
     def from_config(cls, config: EnrichConfig) -> CreditBudget:
@@ -56,6 +86,12 @@ class CreditBudget:
 
     def record(self, kind: str, credits: int) -> None:
         self.spent[kind] += credits
+
+    def mark_exhausted(self) -> None:
+        self._exhausted = True
+
+    def is_exhausted(self) -> bool:
+        return self._exhausted
 
     @property
     def total_spent(self) -> int:
@@ -98,7 +134,7 @@ class Enricher:
         *,
         config: EnrichConfig | None = None,
         cache: LookupCache | None = None,
-        budget: CreditBudget | None = None,
+        budget: Budget | None = None,
         raw_store: RawStore | None = None,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], datetime] = _utcnow,
@@ -110,7 +146,10 @@ class Enricher:
         self.raw_store = raw_store or NullRawStore()
         self.sleep = sleep
         self.clock = clock
-        self.provider_exhausted = False
+
+    @property
+    def provider_exhausted(self) -> bool:
+        return self.budget.is_exhausted()
 
     # ------------------------------------------------------------------ planning
 
@@ -171,19 +210,19 @@ class Enricher:
                 }
             )
 
-        if self.provider_exhausted:
+        if self.budget.is_exhausted():
             return LookupResult(
                 **base,
                 status=LookupStatus.BUDGET_DEFERRED,
                 http_status=402,
-                error_message="provider reported credits exhausted earlier in this run",
+                error_message="provider reported credits exhausted (HTTP 402) this month",
                 attempts=0,
             )
         if not self.budget.allows(plan.kind):
             return LookupResult(
                 **base,
                 status=LookupStatus.BUDGET_DEFERRED,
-                error_message=f"{plan.kind} credit budget for this run is spent",
+                error_message=f"{plan.kind} credit budget is spent",
                 attempts=0,
             )
 
@@ -236,9 +275,9 @@ class Enricher:
             last = attempt == attempts
             if response.status == 429 and not last:
                 wait = response.rate_limit_reset_seconds
-                self.sleep(
-                    min(wait if wait is not None else 2.0**attempt, self.config.max_wait_seconds)
-                )
+                if wait is None:
+                    wait = 2.0**attempt
+                self.sleep(min(wait, self.config.max_wait_seconds))
                 continue
             if response.status >= 500 and not last:
                 self.sleep(min(2.0**attempt, self.config.max_wait_seconds))
@@ -260,7 +299,7 @@ class Enricher:
         }
         status = response.status
         if status == 402:
-            self.provider_exhausted = True
+            self.budget.mark_exhausted()
             return LookupResult(
                 **common,
                 status=LookupStatus.BUDGET_DEFERRED,

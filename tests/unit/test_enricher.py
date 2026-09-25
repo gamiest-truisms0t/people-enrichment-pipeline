@@ -32,7 +32,7 @@ def test_plan_follows_the_matching_ladder() -> None:
     assert context.method is LookupMethod.NAME_CONTEXT
     assert context.kind == "enrich"
     assert context.params["company"] == "Acme"
-    assert context.params["min_likelihood"] == "6"
+    assert context.params["min_likelihood"] == "4"
 
     name_only = enricher.plan(row(1, "a", "b"))
     assert name_only.method is LookupMethod.NAME_ONLY
@@ -99,6 +99,44 @@ def test_rate_limit_is_retried_after_the_reset_header() -> None:
     assert [call[0] for call in provider.calls] == ["enrich", "enrich"]
 
 
+def test_rate_limit_wait_is_capped_by_max_wait_seconds() -> None:
+    from enrich_pipeline.providers.base import ProviderResponse
+
+    class SlowProvider:
+        name = "slow"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def enrich(self, params: dict[str, str]) -> ProviderResponse:
+            self.calls += 1
+            if self.calls == 1:
+                return ProviderResponse("enrich", 429, None, {"retry-after": "3600"})
+            return ProviderResponse("enrich", 404, None)
+
+        def identify(self, params: dict[str, str]) -> ProviderResponse:
+            raise AssertionError("not used")
+
+    sleeps: list[float] = []
+    enricher = Enricher(
+        SlowProvider(), config=EnrichConfig(max_wait_seconds=20.0), sleep=sleeps.append
+    )
+    result = enricher.lookup(row(1, "a", "b", company="x"))
+    assert result.status is LookupStatus.NOT_FOUND
+    assert sleeps == [20.0]
+
+
+def test_identify_thresholds_are_part_of_the_cache_key() -> None:
+    strict, _, _ = make(identify_min_score=90)
+    relaxed, _, _ = make(identify_min_score=50)
+    assert strict.plan(row(1, "a", "b")).key != relaxed.plan(row(1, "a", "b")).key
+    # Enrich keys ignore identify thresholds and vice versa.
+    assert (
+        strict.plan(row(1, "a", "b", company="x")).key
+        == relaxed.plan(row(1, "a", "b", company="x")).key
+    )
+
+
 def test_cache_hit_costs_nothing_and_keeps_the_new_row() -> None:
     enricher, provider, _ = make()
     first = enricher.lookup(row(1, "John", "Doe"))
@@ -120,17 +158,23 @@ def test_run_budget_defers_rows_once_spent() -> None:
     assert deferred.error_message is not None and "budget" in deferred.error_message
 
 
-def test_402_marks_the_provider_exhausted_for_the_rest_of_the_run() -> None:
+def test_402_marks_that_call_kind_exhausted_for_the_rest_of_the_run() -> None:
     enricher, provider, _ = make()
     first = enricher.lookup(row(1, "Budget", "Exhausted", company="x"))
     assert first.status is LookupStatus.BUDGET_DEFERRED
     assert first.http_status == 402
-    assert enricher.provider_exhausted
+    assert enricher.provider_exhausted("enrich")
+    assert not enricher.provider_exhausted("identify")
 
-    later = enricher.lookup(row(2, "John", "Doe"))
+    later = enricher.lookup(row(2, "Jane", "Smith", company="Globex"))  # another enrich call
     assert later.status is LookupStatus.BUDGET_DEFERRED
     assert later.attempts == 0
     assert len(provider.calls) == 1  # no call was made for the deferred row
+
+    # Identify draws on a separate credit pool and keeps working.
+    other_pool = enricher.lookup(row(3, "John", "Doe"))
+    assert other_pool.status is LookupStatus.MATCHED
+    assert len(provider.calls) == 2
 
 
 def test_server_errors_are_retried_then_reported() -> None:

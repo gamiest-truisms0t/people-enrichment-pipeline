@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from enrich_pipeline.enricher import EnrichConfig
 from enrich_pipeline.models import LookupStatus
 
 METRIC_BY_STATUS: dict[LookupStatus, str] = {
@@ -34,12 +35,14 @@ class Settings:
     state_table: str
     provider: str = "mock"
     api_key_param: str | None = None
+    pdl_sandbox: bool = False
     max_rows: int = 500
     max_enrich_credits: int | None = None
     max_identify_credits: int | None = None
-    identify_min_score: int = 70
-    identify_min_margin: int = 20
-    enrich_min_likelihood: int = 6
+    # Tuning defaults live in EnrichConfig; env vars override them per deployment.
+    identify_min_score: int = EnrichConfig.identify_min_score
+    identify_min_margin: int = EnrichConfig.identify_min_margin
+    enrich_min_likelihood: int = EnrichConfig.enrich_min_likelihood
     location_hint: str | None = None
     metrics_namespace: str = "PeopleEnrichment"
 
@@ -52,12 +55,13 @@ class Settings:
             state_table=e["STATE_TABLE"],
             provider=e.get("PROVIDER", "mock"),
             api_key_param=e.get("PDL_API_KEY_PARAM") or None,
+            pdl_sandbox=e.get("PDL_SANDBOX", "").strip().lower() in ("1", "true", "yes"),
             max_rows=int(e.get("MAX_ROWS", "500")),
             max_enrich_credits=_int_or_none(e.get("MAX_ENRICH_CREDITS")),
             max_identify_credits=_int_or_none(e.get("MAX_IDENTIFY_CREDITS")),
-            identify_min_score=int(e.get("IDENTIFY_MIN_SCORE", "70")),
-            identify_min_margin=int(e.get("IDENTIFY_MIN_MARGIN", "20")),
-            enrich_min_likelihood=int(e.get("ENRICH_MIN_LIKELIHOOD", "6")),
+            identify_min_score=int(e.get("IDENTIFY_MIN_SCORE", cls.identify_min_score)),
+            identify_min_margin=int(e.get("IDENTIFY_MIN_MARGIN", cls.identify_min_margin)),
+            enrich_min_likelihood=int(e.get("ENRICH_MIN_LIKELIHOOD", cls.enrich_min_likelihood)),
             location_hint=e.get("LOCATION_HINT") or None,
             metrics_namespace=e.get("POWERTOOLS_METRICS_NAMESPACE", "PeopleEnrichment"),
         )

@@ -15,6 +15,7 @@ locals {
     STATE_TABLE                  = module.storage.state_table_name
     PROVIDER                     = var.provider_name
     PDL_API_KEY_PARAM            = module.secrets.pdl_api_key_parameter_name
+    PDL_SANDBOX                  = var.pdl_sandbox ? "1" : "0"
     MAX_ROWS                     = tostring(var.max_rows)
     MAX_ENRICH_CREDITS           = tostring(var.max_enrich_credits)
     MAX_IDENTIFY_CREDITS         = tostring(var.max_identify_credits)

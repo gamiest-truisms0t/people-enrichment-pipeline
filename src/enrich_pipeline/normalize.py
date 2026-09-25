@@ -49,8 +49,14 @@ def lookup_key(
     company: str | None = None,
     location: str | None = None,
     linkedin_url: str | None = None,
+    extra: str | None = None,
 ) -> str:
-    """Stable SHA-256 over the identifiers that will actually be sent to the provider."""
+    """Stable SHA-256 over the identifiers that will actually be sent to the provider.
+
+    `extra` carries any request parameter that changes the provider's answer (for example
+    the enrichment likelihood threshold), so that tuning it re-queries instead of serving
+    stale cached outcomes.
+    """
     canonical = "|".join(
         (
             normalize_text(first_name),
@@ -59,6 +65,7 @@ def lookup_key(
             normalize_text(company),
             normalize_text(location),
             normalize_url(linkedin_url),
+            normalize_text(extra),
         )
     )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

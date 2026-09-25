@@ -40,3 +40,10 @@ def test_lookup_key_changes_with_identifiers() -> None:
     assert base != lookup_key("John", "Doe", email="john@example.com")
     assert base != lookup_key("John", "Doe", location="Singapore")
     assert base != lookup_key("John", "Doe", linkedin_url="linkedin.com/in/john-doe")
+
+
+def test_lookup_key_changes_with_request_parameters() -> None:
+    strict = lookup_key("John", "Doe", company="Acme", extra="min_likelihood=6")
+    relaxed = lookup_key("John", "Doe", company="Acme", extra="min_likelihood=4")
+    assert strict != relaxed
+    assert strict == lookup_key("John", "Doe", company="Acme", extra="MIN_LIKELIHOOD=6")

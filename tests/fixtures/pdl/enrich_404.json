@@ -1,0 +1,26 @@
+{
+  "body": {
+    "error": {
+      "message": "No records were found matching your request",
+      "type": "not_found"
+    },
+    "status": 404
+  },
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit": "{\"minute\": 100}",
+    "x-ratelimit-remaining": "{\"minute\": 98}",
+    "x-ratelimit-reset": "2026-09-25 14:18:55"
+  },
+  "request": {
+    "kind": "enrich",
+    "params": {
+      "company": "acme corp",
+      "first_name": "nobody",
+      "last_name": "nowhere",
+      "min_likelihood": "6"
+    },
+    "sandbox": true
+  },
+  "status": 404
+}

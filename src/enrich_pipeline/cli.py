@@ -7,6 +7,7 @@ enrich query --out ./out          # answers the brief's three questions with Duc
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -46,12 +47,32 @@ QUESTIONS: dict[str, str] = {
 }
 
 
-def make_provider(name: str) -> Provider:
+DEFAULT_KEY_FILE = Path.home() / ".config" / "people-enrichment" / "pdl_api_key"
+
+
+def _read_api_key(path: Path | None) -> str:
+    """An explicit --api-key-file wins; otherwise PDL_API_KEY; otherwise the default file."""
+    if path is None:
+        if key := os.environ.get("PDL_API_KEY"):
+            return key.strip()
+        path = DEFAULT_KEY_FILE
+    if not path.is_file():
+        raise SystemExit(f"no API key: set PDL_API_KEY or create {path}")
+    key = path.read_text(encoding="utf-8").strip()
+    if not key:
+        raise SystemExit(f"API key file {path} is empty")
+    return key
+
+
+def make_provider(
+    name: str, *, sandbox: bool = False, api_key_file: Path | None = None
+) -> Provider:
     from enrich_pipeline.providers.factory import make_provider as _make
 
+    api_key = _read_api_key(api_key_file) if name == "pdl" else None
     try:
-        return _make(name)
-    except (NotImplementedError, ValueError) as exc:
+        return _make(name, api_key=api_key, sandbox=sandbox)
+    except ValueError as exc:
         raise SystemExit(str(exc)) from None
 
 
@@ -64,12 +85,29 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--input", required=True, type=Path, help="CSV with first_name,last_name,...")
     run.add_argument("--out", default=Path("out"), type=Path, help="output directory")
     run.add_argument("--provider", default="mock", choices=["mock", "pdl"])
+    run.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="use the provider's sandbox host (PDL: synthetic people, zero credits)",
+    )
+    run.add_argument(
+        "--api-key-file",
+        type=Path,
+        default=None,
+        help=f"file holding the PDL API key; otherwise PDL_API_KEY, otherwise {DEFAULT_KEY_FILE}",
+    )
     run.add_argument("--batch-id", default=None)
     run.add_argument("--location-hint", default=None, help="event location added to name lookups")
     run.add_argument("--max-enrich-credits", type=int, default=None)
     run.add_argument("--max-identify-credits", type=int, default=None)
     run.add_argument("--identify-min-score", type=int, default=70)
     run.add_argument("--identify-min-margin", type=int, default=20)
+    run.add_argument(
+        "--enrich-min-likelihood",
+        type=int,
+        default=EnrichConfig.enrich_min_likelihood,
+        help="provider-side match threshold for enrich calls, 1-10",
+    )
     run.add_argument("--json", action="store_true", help="print the run summary as JSON")
 
     query = sub.add_parser("query", help="answer the brief's questions against local Parquet")
@@ -97,13 +135,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     config = EnrichConfig(
         identify_min_score=args.identify_min_score,
         identify_min_margin=args.identify_min_margin,
+        enrich_min_likelihood=args.enrich_min_likelihood,
         max_enrich_credits=args.max_enrich_credits,
         max_identify_credits=args.max_identify_credits,
         location_hint=args.location_hint,
     )
     summary = run_batch(
         args.input,
-        provider=make_provider(args.provider),
+        provider=make_provider(args.provider, sandbox=args.sandbox, api_key_file=args.api_key_file),
         out_dir=args.out,
         config=config,
         batch_id=args.batch_id,

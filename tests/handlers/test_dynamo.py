@@ -45,13 +45,14 @@ def test_budget_counts_and_limits(aws: dict[str, Any]) -> None:
     assert budget.spent("enrich") == 2
     assert budget.total_spent == 2
 
-    assert not budget.is_exhausted()
-    budget.mark_exhausted()
-    assert budget.is_exhausted()
+    assert not budget.is_exhausted("enrich")
+    budget.mark_exhausted("enrich")
+    assert budget.is_exhausted("enrich")
+    assert not budget.is_exhausted("identify")  # separate pool
 
     # A different month starts clean.
     fresh = DynamoBudget(
         aws["table"], provider="mock", month="2026-11", limits={"enrich": 2, "identify": None}
     )
     assert fresh.allows("enrich")
-    assert not fresh.is_exhausted()
+    assert not fresh.is_exhausted("enrich")

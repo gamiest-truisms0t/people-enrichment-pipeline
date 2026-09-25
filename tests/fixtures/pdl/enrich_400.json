@@ -1,0 +1,26 @@
+{
+  "body": {
+    "error": {
+      "message": "Does not meet minimum combination of required data points. Requests must include one of: 'pdl_id' OR 'lid' OR 'email' OR 'email_hash' OR 'phone' OR 'profile' OR 'name'. If 'first_name' and 'last_name' or 'name' are used, then one of the following is required: 'country' OR 'birth_date' OR 'school' OR 'postal_code' OR 'region' OR 'company' OR 'location' OR 'locality' OR 'street_address'.",
+      "type": [
+        "invalid_request_error"
+      ]
+    },
+    "status": 400
+  },
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit": "{\"minute\": 100}",
+    "x-ratelimit-remaining": "{\"minute\": 97}",
+    "x-ratelimit-reset": "2026-09-25 14:18:55"
+  },
+  "request": {
+    "kind": "enrich",
+    "params": {
+      "first_name": "ashley",
+      "last_name": "armstrong"
+    },
+    "sandbox": true
+  },
+  "status": 400
+}

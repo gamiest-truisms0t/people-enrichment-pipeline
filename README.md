@@ -5,13 +5,13 @@ optional email/company), enriches each person through a free people-profile API,
 lands analyst-ready Parquet tables (people, employment history, lookup log) queryable
 in Athena. Provisioned entirely with Terraform. Designed to run on free-tier credits.
 
-**Status:** Phase 3 complete. Dropping a CSV into the landing bucket starts a Step
-Functions execution that validates the file, enriches each row through a Lambda
-function, and builds the three curated Parquet tables, with failures reported to an SNS
-email topic. Everything is provisioned by Terraform and runs against the mock provider;
-the real provider is Phase 4 and the Athena layer is Phase 5. See [PLAN.md](PLAN.md)
-for the architecture, data model, failure handling, and build phases. This README is
-filled in fully at Phase 7.
+**Status:** Phase 4 complete. Dropping a CSV into the landing bucket starts a Step
+Functions execution that validates the file, enriches each row through **People Data
+Labs** (or the offline mock provider), and builds the three curated Parquet tables, with
+failures reported to an SNS email topic. Everything is provisioned by Terraform and has
+run end to end on live data within the free plan. The Athena layer is Phase 5. See
+[PLAN.md](PLAN.md) for the architecture, data model, failure handling, and build phases.
+This README is filled in fully at Phase 7.
 
 ## Quick start (developer)
 
@@ -108,6 +108,52 @@ The same layout is what lands in S3 from Phase 2 onwards.
    batch instead of failing it.
 4. **Raw first.** Every provider response is written to the raw layer before it is
    interpreted, so the curated tables can be rebuilt without spending credits.
+
+## Provider: People Data Labs
+
+`PdlProvider` talks to two endpoints over `httpx`, chosen by the matching ladder:
+`GET /v5/person/enrich` for email, LinkedIn URL, or name plus company/location, and
+`GET /v5/person/identify` for name-only rows. The same class serves the free **sandbox**
+host (`--sandbox` locally, `pdl_sandbox = true` in Terraform), which returns synthetic
+people at zero cost and is what the recorded test fixtures come from.
+
+What was learned running it against the live API, all of which shaped the defaults:
+
+| Finding | Consequence |
+|---|---|
+| Enrichment and Identify are **separate credit pools**: the free plan grants 100 enrichment credits a month but only **5 identify credits** | Separate monthly ceilings (`max_enrich_credits` 70, `max_identify_credits` 2) and a per-pool HTTP 402 marker, so an exhausted identify pool never stops enrichment |
+| Enrichment bills only on a 200; a 404 costs nothing. Identify bills every call, matched or not | Name-only rows are the expensive path; give the input a company or location column whenever the registration system has one |
+| Correct name-plus-company matches for well-known people score a **likelihood of about 4** on PDL's 1-10 scale; a threshold of 6 kept 1 match in 8 | `enrich_min_likelihood` defaults to 4. Every person row carries `match_likelihood`, so analysts can filter more strictly downstream |
+| The threshold is sent to the provider and changes its answer | It is part of the cache key, so tuning it re-queries instead of replaying cached not-found results |
+| The sandbox resolves strong identifiers (profile URL, `pdl_id`, email) but answers 404 to every name-based lookup | Sandbox test data uses LinkedIn URLs; name-based behaviour is verified with recorded live responses |
+| The free plan returns contact and fine-grained location fields as `true`/`false` | The models coerce those to null and the pipeline never stores contact data anyway |
+| `x-ratelimit-reset` is a UTC timestamp, not a number of seconds | The retry logic parses it and sleeps until the window reopens, capped at `max_wait_seconds` |
+
+The API key lives only in an SSM SecureString (`make set-api-key`) and, locally, in
+`~/.config/people-enrichment/pdl_api_key` or `PDL_API_KEY`. Neither the repo nor
+Terraform state ever holds it.
+
+### Live runs on 2026-09-25
+
+The demo input (`data/demo/registrants.csv`) is 28 rows of publicly known company
+executives with their employer, plus one name-only row, one deliberately wrong employer,
+one duplicate and one invalid row. Public figures were used because their professional
+history is public information; the pipeline still stores no contact fields.
+
+| Run | Rows | Outcome | Enrichment credits | Identify credits |
+|---|---|---|---|---|
+| Shakedown, threshold 6 | 9 valid | 1 matched, 8 not found | 1 | 1 |
+| Threshold diagnostic (local CLI, threshold 2) | 3 | 2 matched at likelihood 4, 1 not found | 2 | 0 |
+| Demo batch, threshold 4 | 27 valid | **17 matched**, 9 not found, 1 cached | 17 | 1 |
+| **Month to date** | | | **21 of 100 used, 79 left** | **3 of 5 used, 2 left** |
+
+Match likelihoods on the demo batch ranged from 4 to 9 (median 6). The nine misses were
+true 404s at the provider, which cost nothing, including the deliberate "Mary Barra @
+Microsoft" mismatch. Two data-quality caveats worth knowing when reading `dim_person`:
+PDL's "current job" fields sometimes point at a secondary record (a board seat, a plant
+role), while `fact_employment` carries the full dated history; and `location_country`
+is occasionally wrong at the provider. Both are provider data, kept as delivered, with
+`match_likelihood` available to filter.
 
 ## Layout
 

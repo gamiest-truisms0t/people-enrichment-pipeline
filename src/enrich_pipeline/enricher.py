@@ -4,8 +4,9 @@
 
 Strong identifiers use the provider's enrich call (billed only on a match).
 Name-only rows use identify (billed on every call), so it has a separate budget
-and a confidence gate. Retries handle 429/5xx; a 402 marks the budget exhausted
-so the rest of the batch is deferred rather than failed.
+and a confidence gate. Retries handle 429/5xx; a 402 marks that call kind's budget
+exhausted so the rest of the batch is deferred rather than failed. Providers bill
+enrich and identify from separate pools, which is why exhaustion is tracked per kind.
 
 Cache, budget and raw store are protocols: in-memory/local for the CLI and
 tests, DynamoDB/S3 in Lambda (see `enrich_pipeline.aws`).
@@ -45,7 +46,10 @@ CACHEABLE = frozenset({LookupStatus.MATCHED, LookupStatus.NOT_FOUND, LookupStatu
 class EnrichConfig:
     identify_min_score: int = 70
     identify_min_margin: int = 20
-    enrich_min_likelihood: int = 6
+    # PDL scores correct name + company matches of well-known people around 4 on its 1-10
+    # scale (measured 2026-09-25); 6 discarded most true matches. The score is kept on every
+    # person row so analysts can filter more strictly downstream.
+    enrich_min_likelihood: int = 4
     max_attempts: int = 4
     max_wait_seconds: float = 60.0
     max_enrich_credits: int | None = None
@@ -54,15 +58,15 @@ class EnrichConfig:
 
 
 class Budget(Protocol):
-    """Credit ceilings per billable call kind plus the provider-exhausted marker."""
+    """Credit ceilings per billable call kind plus a per-kind provider-exhausted marker."""
 
     def allows(self, kind: str) -> bool: ...
 
     def record(self, kind: str, credits: int) -> None: ...
 
-    def mark_exhausted(self) -> None: ...
+    def mark_exhausted(self, kind: str) -> None: ...
 
-    def is_exhausted(self) -> bool: ...
+    def is_exhausted(self, kind: str) -> bool: ...
 
     @property
     def total_spent(self) -> int: ...
@@ -74,7 +78,7 @@ class CreditBudget:
     def __init__(self, *, enrich: int | None = None, identify: int | None = None) -> None:
         self.limits: dict[str, int | None] = {"enrich": enrich, "identify": identify}
         self.spent: Counter[str] = Counter()
-        self._exhausted = False
+        self._exhausted: set[str] = set()
 
     @classmethod
     def from_config(cls, config: EnrichConfig) -> CreditBudget:
@@ -87,11 +91,11 @@ class CreditBudget:
     def record(self, kind: str, credits: int) -> None:
         self.spent[kind] += credits
 
-    def mark_exhausted(self) -> None:
-        self._exhausted = True
+    def mark_exhausted(self, kind: str) -> None:
+        self._exhausted.add(kind)
 
-    def is_exhausted(self) -> bool:
-        return self._exhausted
+    def is_exhausted(self, kind: str) -> bool:
+        return kind in self._exhausted
 
     @property
     def total_spent(self) -> int:
@@ -147,9 +151,8 @@ class Enricher:
         self.sleep = sleep
         self.clock = clock
 
-    @property
-    def provider_exhausted(self) -> bool:
-        return self.budget.is_exhausted()
+    def provider_exhausted(self, kind: ResponseKind) -> bool:
+        return self.budget.is_exhausted(kind)
 
     # ------------------------------------------------------------------ planning
 
@@ -175,6 +178,16 @@ class Enricher:
         if kind == "enrich":
             params["min_likelihood"] = str(self.config.enrich_min_likelihood)
 
+        # Anything that changes how an answer is produced or judged is part of the key, so
+        # tuning a threshold re-queries instead of replaying a cached outcome: the enrich
+        # likelihood is applied by the provider, the identify gate by us.
+        if kind == "enrich":
+            extra = f"min_likelihood={params['min_likelihood']}"
+        else:
+            extra = (
+                f"identify_min_score={self.config.identify_min_score}"
+                f";identify_min_margin={self.config.identify_min_margin}"
+            )
         key = lookup_key(
             row.first_name,
             row.last_name,
@@ -182,6 +195,7 @@ class Enricher:
             company=row.company,
             location=location if method is LookupMethod.NAME_CONTEXT else None,
             linkedin_url=row.linkedin_url,
+            extra=extra,
         )
         return LookupPlan(method=method, kind=kind, params=params, key=key)
 
@@ -210,12 +224,12 @@ class Enricher:
                 }
             )
 
-        if self.budget.is_exhausted():
+        if self.budget.is_exhausted(plan.kind):
             return LookupResult(
                 **base,
                 status=LookupStatus.BUDGET_DEFERRED,
                 http_status=402,
-                error_message="provider reported credits exhausted (HTTP 402) this month",
+                error_message=f"provider reported {plan.kind} credits exhausted (HTTP 402)",
                 attempts=0,
             )
         if not self.budget.allows(plan.kind):
@@ -299,7 +313,7 @@ class Enricher:
         }
         status = response.status
         if status == 402:
-            self.budget.mark_exhausted()
+            self.budget.mark_exhausted(plan.kind)
             return LookupResult(
                 **common,
                 status=LookupStatus.BUDGET_DEFERRED,

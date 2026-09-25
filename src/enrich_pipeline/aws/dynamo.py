@@ -2,9 +2,11 @@
 
 One table, one partition key, prefixed items:
 
-    lookup#<lookup_key>                  cached LookupResult (TTL)
-    budget#<provider>#<YYYY-MM>#<kind>   credits spent this month per billable call kind
-    budget#<provider>#<YYYY-MM>#exhausted marker set after the provider returns HTTP 402
+    lookup#<lookup_key>                          cached LookupResult (TTL)
+    budget#<provider>#<YYYY-MM>#<kind>           credits spent this month per billable call kind
+    budget#<provider>#<YYYY-MM>#exhausted#<kind> marker set after the provider returned HTTP 402
+                                                 for that kind (PDL bills enrich and identify
+                                                 from separate pools)
 """
 
 from __future__ import annotations
@@ -104,12 +106,13 @@ class DynamoBudget:
             },
         )
 
-    def mark_exhausted(self) -> None:
+    def mark_exhausted(self, kind: str) -> None:
         self.table.put_item(
             Item={
-                "pk": self.pk("exhausted"),
+                "pk": self.pk(f"exhausted#{kind}"),
                 "kind": "budget",
                 "exhausted": True,
+                "call_kind": kind,
                 "provider": self.provider,
                 "month": self.month,
                 "updated_at": _now_iso(),
@@ -117,10 +120,10 @@ class DynamoBudget:
             }
         )
 
-    def is_exhausted(self) -> bool:
-        item = self.table.get_item(Key={"pk": self.pk("exhausted")}, ConsistentRead=True).get(
-            "Item"
-        )
+    def is_exhausted(self, kind: str) -> bool:
+        item = self.table.get_item(
+            Key={"pk": self.pk(f"exhausted#{kind}")}, ConsistentRead=True
+        ).get("Item")
         return bool(item and item.get("exhausted"))
 
     @property

@@ -1,0 +1,1969 @@
+{
+  "body": {
+    "matches": [
+      {
+        "data": {
+          "countries": [
+            "united states",
+            "united states",
+            "canada"
+          ],
+          "dataset_version": "v35.2",
+          "education": [
+            {
+              "degrees": [
+                "bachelor of science in microbiology"
+              ],
+              "end_date": "2004-01-24",
+              "gpa": 1.7,
+              "majors": [
+                "scandinavian literature and culture",
+                "film",
+                "japanese language studies"
+              ],
+              "minors": [
+                "european modern languages"
+              ],
+              "school": {
+                "domain": "thornton-moore-and-carrillo.edu",
+                "facebook_url": "facebook.com/thornton-moore-and-carrillo",
+                "id": null,
+                "linkedin_id": "86518214",
+                "linkedin_url": "linkedin.com/school/thornton-moore-and-carrillo",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "port cathy",
+                  "name": "port cathy, ontario, canada",
+                  "region": "ontario"
+                },
+                "name": "thornton, moore and carrillo",
+                "twitter_url": "twitter.com/thornton-moore-and-carrillo",
+                "type": "secondary school",
+                "website": "thornton-moore-and-carrillo.edu"
+              },
+              "start_date": "2005-10-27"
+            },
+            {
+              "degrees": [
+                "master of science in instructional leadership administration"
+              ],
+              "end_date": "2010-12-09",
+              "gpa": 1.0,
+              "majors": [
+                "slavic culture",
+                "naval architecture and ocean engineering"
+              ],
+              "minors": [
+                "afrikaans language and culture",
+                "buddhist studies",
+                "african literature and culture"
+              ],
+              "school": {
+                "domain": "spencer-and-sons.edu",
+                "facebook_url": "facebook.com/spencer-and-sons",
+                "id": null,
+                "linkedin_id": "22343822",
+                "linkedin_url": "linkedin.com/school/spencer-and-sons",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "annborough",
+                  "name": "annborough, british columbia, canada",
+                  "region": "british columbia"
+                },
+                "name": "spencer and sons",
+                "twitter_url": "twitter.com/spencer-and-sons",
+                "type": "secondary school",
+                "website": "spencer-and-sons.edu"
+              },
+              "start_date": "2009-05-02"
+            },
+            {
+              "degrees": [
+                "doctor of medical dentistry"
+              ],
+              "end_date": "2013-09-19",
+              "gpa": 4.2,
+              "majors": [
+                "cognitive science",
+                "electrical engineering tech",
+                "broadcast journalism"
+              ],
+              "minors": [
+                "statistics and decision science"
+              ],
+              "school": {
+                "domain": "marsh-ltd.edu",
+                "facebook_url": "facebook.com/marsh-ltd",
+                "id": null,
+                "linkedin_id": "75016428",
+                "linkedin_url": "linkedin.com/school/marsh-ltd",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "johnberg",
+                  "name": "johnberg, california, united states",
+                  "region": "california"
+                },
+                "name": "marsh ltd",
+                "twitter_url": "twitter.com/marsh-ltd",
+                "type": "primary school",
+                "website": "marsh-ltd.edu"
+              },
+              "start_date": "2006-11-30"
+            }
+          ],
+          "experience": [
+            {
+              "company": {
+                "facebook_url": "facebook.com/russell-alvarez-and-morgan",
+                "founded": 1973,
+                "id": "9qz7mwxVYTTzIvovHj04YvkNHmCF",
+                "industry": "pharmaceuticals",
+                "industry_v2": "radio and television broadcasting",
+                "linkedin_id": "77106036",
+                "linkedin_url": "linkedin.com/company/russell-alvarez-and-morgan",
+                "location": {
+                  "address_line_2": "suite 575",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "64.2120735,128.424147",
+                  "locality": "stewartmouth",
+                  "metro": "stewartmouth",
+                  "name": "stewartmouth, quebec, canada",
+                  "postal_code": "A9A 6A5",
+                  "region": "quebec",
+                  "street_address": "7537 wells circles apt. 914"
+                },
+                "name": "russell, alvarez and morgan",
+                "size": "10001+",
+                "twitter_url": "twitter.com/russell-alvarez-and-morgan",
+                "website": "russell-alvarez-and-morgan.com"
+              },
+              "end_date": "2021-05-06",
+              "is_primary": true,
+              "location_names": [
+                "stewartmouth, quebec, canada"
+              ],
+              "start_date": "2019-08-12",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "vp",
+                  "vp"
+                ],
+                "name": "teacher, special educational needs",
+                "role": "education",
+                "sub_role": "primary_and_secondary"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/alvarez-morgan",
+                "founded": 1933,
+                "id": "cVADSEEzUoivQVKXoDg55HgDRKF0",
+                "industry": "religious institutions",
+                "industry_v2": "military and international affairs",
+                "linkedin_id": "83170394",
+                "linkedin_url": "linkedin.com/company/alvarez-morgan",
+                "location": {
+                  "address_line_2": "apt. 229",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "-12.7976895,-26.905199",
+                  "locality": "new jeanetteland",
+                  "metro": "new jeanetteland",
+                  "name": "new jeanetteland, california, united states",
+                  "postal_code": "61156",
+                  "region": "california",
+                  "street_address": "7332 kayla street suite 829"
+                },
+                "name": "alvarez-morgan",
+                "size": "10001+",
+                "twitter_url": "twitter.com/alvarez-morgan",
+                "website": "alvarez-morgan.com"
+              },
+              "end_date": "2019-04-06",
+              "is_primary": false,
+              "location_names": [
+                "alejandroview, quebec, canada"
+              ],
+              "start_date": "2019-03-24",
+              "title": {
+                "class": null,
+                "levels": [
+                  "unpaid"
+                ],
+                "name": "contracting civil engineer",
+                "role": "engineering",
+                "sub_role": "mechanical"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/molina-herrera-and-castro",
+                "founded": 1915,
+                "id": "bhvkRA3jkiv7zRRNKVEMjTR9ovef",
+                "industry": "entertainment",
+                "industry_v2": "renewable energy semiconductor manufacturing",
+                "linkedin_id": "92106510",
+                "linkedin_url": "linkedin.com/company/molina-herrera-and-castro",
+                "location": {
+                  "address_line_2": "apt. 994",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "34.708599,22.076842",
+                  "locality": "mackenziehaven",
+                  "metro": "mackenziehaven",
+                  "name": "mackenziehaven, california, united states",
+                  "postal_code": "57961",
+                  "region": "california",
+                  "street_address": "2854 phillips locks suite 142"
+                },
+                "name": "molina, herrera and castro",
+                "size": "10001+",
+                "twitter_url": "twitter.com/molina-herrera-and-castro",
+                "website": "molina-herrera-and-castro.com"
+              },
+              "end_date": "2019-10-22",
+              "is_primary": false,
+              "location_names": [
+                "charlesbury, texas, united states",
+                "west kelseyside, quebec, canada",
+                "wilsonbury, california, united states"
+              ],
+              "start_date": "2019-07-10",
+              "title": {
+                "class": null,
+                "levels": [
+                  "entry",
+                  "director",
+                  "training"
+                ],
+                "name": "buyer, retail",
+                "role": "fulfillment",
+                "sub_role": "logistics"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/edwards-pierce-and-smith",
+                "founded": 1951,
+                "id": "MQEVAs5X9kmTE9y1Y3k6Z7D1hqNA",
+                "industry": "oil & energy",
+                "industry_v2": "metal valve, ball, and roller manufacturing",
+                "linkedin_id": "20754134",
+                "linkedin_url": "linkedin.com/company/edwards-pierce-and-smith",
+                "location": {
+                  "address_line_2": "suite 188",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "14.9202885,-52.410168",
+                  "locality": "new monicaberg",
+                  "metro": "new monicaberg",
+                  "name": "new monicaberg, ontario, canada",
+                  "postal_code": "A9A 5A8",
+                  "region": "ontario",
+                  "street_address": "82568 peters ferry suite 463"
+                },
+                "name": "edwards, pierce and smith",
+                "size": "10001+",
+                "twitter_url": "twitter.com/edwards-pierce-and-smith",
+                "website": "edwards-pierce-and-smith.com"
+              },
+              "end_date": "2020-03-01",
+              "is_primary": false,
+              "location_names": [
+                "mitchelltown, texas, united states"
+              ],
+              "start_date": "2018-09-06",
+              "title": {
+                "class": null,
+                "levels": [
+                  "entry"
+                ],
+                "name": "engineer, production",
+                "role": "engineering",
+                "sub_role": null
+              }
+            }
+          ],
+          "facebook_id": "qWjyEy",
+          "facebook_url": "facebook.com/aa73",
+          "facebook_username": "aa73",
+          "first_name": "autumn",
+          "full_name": "autumn andrews",
+          "github_url": "github.com/aa73",
+          "github_username": "aa73",
+          "id": "qWjyEydGMozLkaOMBNmiHE_0000",
+          "industry": "pharmaceuticals",
+          "interests": [],
+          "job_company_facebook_url": "facebook.com/russell-alvarez-and-morgan",
+          "job_company_founded": 1973,
+          "job_company_id": "9qz7mwxVYTTzIvovHj04YvkNHmCF",
+          "job_company_industry": "pharmaceuticals",
+          "job_company_industry_v2": "radio and television broadcasting",
+          "job_company_linkedin_id": "77106036",
+          "job_company_linkedin_url": "linkedin.com/company/russell-alvarez-and-morgan",
+          "job_company_location_address_line_2": "suite 575",
+          "job_company_location_continent": "north america",
+          "job_company_location_country": "canada",
+          "job_company_location_geo": "64.2120735,128.424147",
+          "job_company_location_locality": "stewartmouth",
+          "job_company_location_metro": "stewartmouth",
+          "job_company_location_name": "stewartmouth, quebec, canada",
+          "job_company_location_postal_code": "A9A 6A5",
+          "job_company_location_region": "quebec",
+          "job_company_location_street_address": "7537 wells circles apt. 914",
+          "job_company_name": "russell, alvarez and morgan",
+          "job_company_size": "10001+",
+          "job_company_twitter_url": "twitter.com/russell-alvarez-and-morgan",
+          "job_company_website": "russell-alvarez-and-morgan.com",
+          "job_last_changed": "2026-09-13",
+          "job_last_verified": "2026-09-13",
+          "job_start_date": "2019-08-12",
+          "job_title": "teacher, special educational needs",
+          "job_title_class": "services",
+          "job_title_levels": [
+            "vp",
+            "vp",
+            "vp"
+          ],
+          "job_title_role": "education",
+          "job_title_sub_role": "primary_and_secondary",
+          "last_initial": "a",
+          "last_name": "andrews",
+          "linkedin_id": "qWjyEy",
+          "linkedin_url": "linkedin.com/in/aa73",
+          "linkedin_username": "aa73",
+          "location_address_line_2": "suite 575",
+          "location_continent": "north america",
+          "location_country": "canada",
+          "location_geo": true,
+          "location_last_updated": "2026-09-13",
+          "location_locality": true,
+          "location_metro": true,
+          "location_name": true,
+          "location_names": true,
+          "location_postal_code": true,
+          "location_region": true,
+          "location_street_address": true,
+          "middle_initial": null,
+          "middle_name": null,
+          "regions": true,
+          "skills": [
+            "level",
+            "already"
+          ],
+          "twitter_url": "twitter.com/aa73",
+          "twitter_username": "aa73"
+        },
+        "match_score": 90,
+        "matched_on": [
+          "linkedin"
+        ]
+      },
+      {
+        "data": {
+          "countries": [
+            "united states",
+            "canada"
+          ],
+          "dataset_version": "v35.2",
+          "education": [
+            {
+              "degrees": [
+                "magister juris"
+              ],
+              "end_date": "2010-12-10",
+              "gpa": 1.4,
+              "majors": [
+                "metallurgical engineering"
+              ],
+              "minors": [
+                "science tech",
+                "physical fitness parks recreation and leisure"
+              ],
+              "school": {
+                "domain": "king-gonzalez-and-brown.edu",
+                "facebook_url": "facebook.com/king-gonzalez-and-brown",
+                "id": null,
+                "linkedin_id": "4239568",
+                "linkedin_url": "linkedin.com/school/king-gonzalez-and-brown",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "west jamieton",
+                  "name": "west jamieton, ontario, canada",
+                  "region": "ontario"
+                },
+                "name": "king, gonzalez and brown",
+                "twitter_url": "twitter.com/king-gonzalez-and-brown",
+                "type": "secondary school",
+                "website": "king-gonzalez-and-brown.edu"
+              },
+              "start_date": "2001-12-04"
+            },
+            {
+              "degrees": [
+                "master of library & information studies"
+              ],
+              "end_date": "2015-04-03",
+              "gpa": 1.1,
+              "majors": [
+                "physics",
+                "czech literature and culture",
+                "baking and pastry art"
+              ],
+              "minors": [
+                "virology"
+              ],
+              "school": {
+                "domain": "trujillo-austin.edu",
+                "facebook_url": "facebook.com/trujillo-austin",
+                "id": null,
+                "linkedin_id": "58929914",
+                "linkedin_url": "linkedin.com/school/trujillo-austin",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "new kathleenchester",
+                  "name": "new kathleenchester, british columbia, canada",
+                  "region": "british columbia"
+                },
+                "name": "trujillo-austin",
+                "twitter_url": "twitter.com/trujillo-austin",
+                "type": "post-secondary institution",
+                "website": "trujillo-austin.edu"
+              },
+              "start_date": "2008-05-15"
+            }
+          ],
+          "experience": [
+            {
+              "company": {
+                "facebook_url": "facebook.com/roberts-kane-and-bishop",
+                "founded": 1973,
+                "id": "HYOvpBsuWg0exB8NbrQIockPWO00",
+                "industry": "writing and editing",
+                "industry_v2": "public safety",
+                "linkedin_id": "76743838",
+                "linkedin_url": "linkedin.com/company/roberts-kane-and-bishop",
+                "location": {
+                  "address_line_2": "suite 594",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "63.487677,126.975354",
+                  "locality": "sabrinastad",
+                  "metro": "sabrinastad",
+                  "name": "sabrinastad, quebec, canada",
+                  "postal_code": "A9A 4A5",
+                  "region": "quebec",
+                  "street_address": "9403 rivera loaf apt. 132"
+                },
+                "name": "roberts, kane and bishop",
+                "size": "10001+",
+                "twitter_url": "twitter.com/roberts-kane-and-bishop",
+                "website": "roberts-kane-and-bishop.com"
+              },
+              "end_date": "2020-11-03",
+              "is_primary": true,
+              "location_names": [
+                "sabrinastad, quebec, canada"
+              ],
+              "start_date": "2019-08-11",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "vp",
+                  "vp"
+                ],
+                "name": "teacher, music",
+                "role": "education",
+                "sub_role": "primary_and_secondary"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/bishop-collins",
+                "founded": 1928,
+                "id": "UMFIUq1NSxG6DOWIs4gZ9LgygWGE",
+                "industry": "paper & forest products",
+                "industry_v2": "hydroelectric power generation",
+                "linkedin_id": "77908143",
+                "linkedin_url": "linkedin.com/company/bishop-collins",
+                "location": {
+                  "address_line_2": "apt. 007",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "4.2649655,-47.602606",
+                  "locality": "north jason",
+                  "metro": "north jason",
+                  "name": "north jason, ontario, canada",
+                  "postal_code": "A0A 0A9",
+                  "region": "ontario",
+                  "street_address": "94430 brown groves"
+                },
+                "name": "bishop-collins",
+                "size": "10001+",
+                "twitter_url": "twitter.com/bishop-collins",
+                "website": "bishop-collins.com"
+              },
+              "end_date": "2020-05-27",
+              "is_primary": false,
+              "location_names": [
+                "new stephanie, new york, united states",
+                "kimberlymouth, california, united states"
+              ],
+              "start_date": "2018-11-16",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "entry"
+                ],
+                "name": "magazine journalist",
+                "role": "creative",
+                "sub_role": "journalism"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/mayo-soto-and-rich",
+                "founded": 2016,
+                "id": "sGJIB3BEjSHz5AN9lC6h39w2jHtC",
+                "industry": "recreational facilities and services",
+                "industry_v2": "insurance agencies and brokerages",
+                "linkedin_id": "19476518",
+                "linkedin_url": "linkedin.com/company/mayo-soto-and-rich",
+                "location": {
+                  "address_line_2": "apt. 141",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "-26.3144715,-9.609634",
+                  "locality": "port brandonport",
+                  "metro": "port brandonport",
+                  "name": "port brandonport, texas, united states",
+                  "postal_code": "16653",
+                  "region": "texas",
+                  "street_address": "7788 nixon trafficway apt. 298"
+                },
+                "name": "mayo, soto and rich",
+                "size": "10001+",
+                "twitter_url": "twitter.com/mayo-soto-and-rich",
+                "website": "mayo-soto-and-rich.com"
+              },
+              "end_date": "2020-08-30",
+              "is_primary": false,
+              "location_names": [
+                "rachelborough, california, united states",
+                "garciaview, ontario, canada"
+              ],
+              "start_date": "2018-12-25",
+              "title": {
+                "class": null,
+                "levels": [
+                  "director",
+                  "manager",
+                  "training"
+                ],
+                "name": "it technical support officer",
+                "role": "support",
+                "sub_role": "customer_support"
+              }
+            }
+          ],
+          "facebook_id": "VsWXaR",
+          "facebook_url": "facebook.com/aa73",
+          "facebook_username": "aa73",
+          "first_name": "ashley",
+          "full_name": "ashley armstrong",
+          "github_url": "github.com/aa73",
+          "github_username": "aa73",
+          "id": "VsWXaRuRilHmnkcZvYkdzb_0000",
+          "industry": "writing and editing",
+          "interests": [
+            "history"
+          ],
+          "job_company_facebook_url": "facebook.com/roberts-kane-and-bishop",
+          "job_company_founded": 1973,
+          "job_company_id": "HYOvpBsuWg0exB8NbrQIockPWO00",
+          "job_company_industry": "writing and editing",
+          "job_company_industry_v2": "public safety",
+          "job_company_linkedin_id": "76743838",
+          "job_company_linkedin_url": "linkedin.com/company/roberts-kane-and-bishop",
+          "job_company_location_address_line_2": "suite 594",
+          "job_company_location_continent": "north america",
+          "job_company_location_country": "canada",
+          "job_company_location_geo": "63.487677,126.975354",
+          "job_company_location_locality": "sabrinastad",
+          "job_company_location_metro": "sabrinastad",
+          "job_company_location_name": "sabrinastad, quebec, canada",
+          "job_company_location_postal_code": "A9A 4A5",
+          "job_company_location_region": "quebec",
+          "job_company_location_street_address": "9403 rivera loaf apt. 132",
+          "job_company_name": "roberts, kane and bishop",
+          "job_company_size": "10001+",
+          "job_company_twitter_url": "twitter.com/roberts-kane-and-bishop",
+          "job_company_website": "roberts-kane-and-bishop.com",
+          "job_last_changed": "2026-09-13",
+          "job_last_verified": "2026-09-13",
+          "job_start_date": "2019-08-11",
+          "job_title": "teacher, music",
+          "job_title_class": "services",
+          "job_title_levels": [
+            "vp",
+            "vp",
+            "vp"
+          ],
+          "job_title_role": "education",
+          "job_title_sub_role": "primary_and_secondary",
+          "last_initial": "a",
+          "last_name": "armstrong",
+          "linkedin_id": "VsWXaR",
+          "linkedin_url": "linkedin.com/in/aa73",
+          "linkedin_username": "aa73",
+          "location_address_line_2": "suite 594",
+          "location_continent": "north america",
+          "location_country": "canada",
+          "location_geo": true,
+          "location_last_updated": "2026-09-13",
+          "location_locality": true,
+          "location_metro": true,
+          "location_name": true,
+          "location_names": true,
+          "location_postal_code": true,
+          "location_region": true,
+          "location_street_address": true,
+          "middle_initial": null,
+          "middle_name": null,
+          "regions": true,
+          "skills": [
+            "else"
+          ],
+          "twitter_url": "twitter.com/aa73",
+          "twitter_username": "aa73"
+        },
+        "match_score": 90,
+        "matched_on": [
+          "linkedin"
+        ]
+      },
+      {
+        "data": {
+          "countries": [
+            "canada",
+            "canada"
+          ],
+          "dataset_version": "v35.2",
+          "education": [
+            {
+              "degrees": [
+                "master of science in public health"
+              ],
+              "end_date": "2012-05-03",
+              "gpa": 4.5,
+              "majors": [
+                "tibetan language studies",
+                "spanish",
+                "asian american studies"
+              ],
+              "minors": [
+                "serbian studies",
+                "japanese literature"
+              ],
+              "school": {
+                "domain": "brady-ltd.edu",
+                "facebook_url": "facebook.com/brady-ltd",
+                "id": null,
+                "linkedin_id": "81425558",
+                "linkedin_url": "linkedin.com/school/brady-ltd",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "mendozaview",
+                  "name": "mendozaview, quebec, canada",
+                  "region": "quebec"
+                },
+                "name": "brady ltd",
+                "twitter_url": "twitter.com/brady-ltd",
+                "type": "primary school",
+                "website": "brady-ltd.edu"
+              },
+              "start_date": "2003-03-20"
+            },
+            {
+              "degrees": [
+                "master of aquaculture"
+              ],
+              "end_date": "2014-02-08",
+              "gpa": 1.7,
+              "majors": [
+                "elementary education",
+                "afrikaans culture"
+              ],
+              "minors": [
+                "science tech",
+                "human resource management",
+                "danish language"
+              ],
+              "school": {
+                "domain": "rodriguez-boyer-and-nash.edu",
+                "facebook_url": "facebook.com/rodriguez-boyer-and-nash",
+                "id": null,
+                "linkedin_id": "84011051",
+                "linkedin_url": "linkedin.com/school/rodriguez-boyer-and-nash",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "west russell",
+                  "name": "west russell, quebec, canada",
+                  "region": "quebec"
+                },
+                "name": "rodriguez, boyer and nash",
+                "twitter_url": "twitter.com/rodriguez-boyer-and-nash",
+                "type": "primary school",
+                "website": "rodriguez-boyer-and-nash.edu"
+              },
+              "start_date": "2004-10-28"
+            }
+          ],
+          "experience": [
+            {
+              "company": {
+                "facebook_url": "facebook.com/hull-french-and-simon",
+                "founded": 1973,
+                "id": "r5IexOUq37UKACgdzdlwsZkzZQ3Q",
+                "industry": "writing and editing",
+                "industry_v2": "racetracks",
+                "linkedin_id": "76863306",
+                "linkedin_url": "linkedin.com/company/hull-french-and-simon",
+                "location": {
+                  "address_line_2": "suite 893",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "63.7266125,127.453225",
+                  "locality": "jessicaborough",
+                  "metro": "jessicaborough",
+                  "name": "jessicaborough, quebec, canada",
+                  "postal_code": "A9A 9A5",
+                  "region": "quebec",
+                  "street_address": "893 rodgers wall suite 625"
+                },
+                "name": "hull, french and simon",
+                "size": "10001+",
+                "twitter_url": "twitter.com/hull-french-and-simon",
+                "website": "hull-french-and-simon.com"
+              },
+              "end_date": "2020-12-26",
+              "is_primary": true,
+              "location_names": [
+                "jessicaborough, quebec, canada"
+              ],
+              "start_date": "2019-08-11",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "vp",
+                  "vp"
+                ],
+                "name": "teacher, primary school",
+                "role": "education",
+                "sub_role": "primary_and_secondary"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/rose-harris-and-le",
+                "founded": 1994,
+                "id": "3lY9DHQckymK5pFvcB6Jj41lYVNv",
+                "industry": "newspapers",
+                "industry_v2": "media production",
+                "linkedin_id": "44221063",
+                "linkedin_url": "linkedin.com/company/rose-harris-and-le",
+                "location": {
+                  "address_line_2": "suite 415",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "27.2944315,-8.507108",
+                  "locality": "angelicastad",
+                  "metro": "angelicastad",
+                  "name": "angelicastad, texas, united states",
+                  "postal_code": "23592",
+                  "region": "texas",
+                  "street_address": "240 ball way suite 877"
+                },
+                "name": "rose, harris and le",
+                "size": "10001+",
+                "twitter_url": "twitter.com/rose-harris-and-le",
+                "website": "rose-harris-and-le.com"
+              },
+              "end_date": "2019-09-25",
+              "is_primary": false,
+              "location_names": [
+                "new stevenbury, ontario, canada"
+              ],
+              "start_date": "2018-01-12",
+              "title": {
+                "class": null,
+                "levels": [
+                  "entry"
+                ],
+                "name": "barista",
+                "role": "hospitality",
+                "sub_role": "restaurants"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/evans-llc",
+                "founded": 1913,
+                "id": "5qMTTk4dJKeBijPQ5NXWnYCC5VbN",
+                "industry": "investment banking",
+                "industry_v2": "professional training and coaching",
+                "linkedin_id": "61180313",
+                "linkedin_url": "linkedin.com/company/evans-llc",
+                "location": {
+                  "address_line_2": "apt. 549",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "63.217900,166.824351",
+                  "locality": "east jacobborough",
+                  "metro": "east jacobborough",
+                  "name": "east jacobborough, ontario, canada",
+                  "postal_code": "A6A 2A0",
+                  "region": "ontario",
+                  "street_address": "72362 moody terrace"
+                },
+                "name": "evans llc",
+                "size": "10001+",
+                "twitter_url": "twitter.com/evans-llc",
+                "website": "evans-llc.com"
+              },
+              "end_date": "2019-07-05",
+              "is_primary": false,
+              "location_names": [
+                "johnview, quebec, canada",
+                "south johntown, california, united states"
+              ],
+              "start_date": "2018-02-19",
+              "title": {
+                "class": null,
+                "levels": [
+                  "director",
+                  "director"
+                ],
+                "name": "haematologist",
+                "role": null,
+                "sub_role": null
+              }
+            }
+          ],
+          "facebook_id": "MFLOuK",
+          "facebook_url": "facebook.com/aa73",
+          "facebook_username": "aa73",
+          "first_name": "ashley",
+          "full_name": "ashley armstrong",
+          "github_url": "github.com/aa73",
+          "github_username": "aa73",
+          "id": "MFLOuKtiDtZOhbvPyzqfqU_0000",
+          "industry": "writing and editing",
+          "interests": [
+            "or",
+            "key"
+          ],
+          "job_company_facebook_url": "facebook.com/hull-french-and-simon",
+          "job_company_founded": 1973,
+          "job_company_id": "r5IexOUq37UKACgdzdlwsZkzZQ3Q",
+          "job_company_industry": "writing and editing",
+          "job_company_industry_v2": "racetracks",
+          "job_company_linkedin_id": "76863306",
+          "job_company_linkedin_url": "linkedin.com/company/hull-french-and-simon",
+          "job_company_location_address_line_2": "suite 893",
+          "job_company_location_continent": "north america",
+          "job_company_location_country": "canada",
+          "job_company_location_geo": "63.7266125,127.453225",
+          "job_company_location_locality": "jessicaborough",
+          "job_company_location_metro": "jessicaborough",
+          "job_company_location_name": "jessicaborough, quebec, canada",
+          "job_company_location_postal_code": "A9A 9A5",
+          "job_company_location_region": "quebec",
+          "job_company_location_street_address": "893 rodgers wall suite 625",
+          "job_company_name": "hull, french and simon",
+          "job_company_size": "10001+",
+          "job_company_twitter_url": "twitter.com/hull-french-and-simon",
+          "job_company_website": "hull-french-and-simon.com",
+          "job_last_changed": "2026-09-13",
+          "job_last_verified": "2026-09-13",
+          "job_start_date": "2019-08-11",
+          "job_title": "teacher, primary school",
+          "job_title_class": "services",
+          "job_title_levels": [
+            "vp",
+            "vp",
+            "vp"
+          ],
+          "job_title_role": "education",
+          "job_title_sub_role": "primary_and_secondary",
+          "last_initial": "a",
+          "last_name": "armstrong",
+          "linkedin_id": "MFLOuK",
+          "linkedin_url": "linkedin.com/in/aa73",
+          "linkedin_username": "aa73",
+          "location_address_line_2": "suite 893",
+          "location_continent": "north america",
+          "location_country": "canada",
+          "location_geo": true,
+          "location_last_updated": "2026-09-13",
+          "location_locality": true,
+          "location_metro": true,
+          "location_name": true,
+          "location_names": true,
+          "location_postal_code": true,
+          "location_region": true,
+          "location_street_address": true,
+          "middle_initial": null,
+          "middle_name": null,
+          "regions": true,
+          "skills": [],
+          "twitter_url": "twitter.com/aa73",
+          "twitter_username": "aa73"
+        },
+        "match_score": 90,
+        "matched_on": [
+          "linkedin"
+        ]
+      },
+      {
+        "data": {
+          "countries": [
+            "canada",
+            "canada"
+          ],
+          "dataset_version": "v35.2",
+          "education": [
+            {
+              "degrees": [
+                "master of science in industrial engineering"
+              ],
+              "end_date": "2018-10-22",
+              "gpa": 3.8,
+              "majors": [
+                "speech and hearing science"
+              ],
+              "minors": [
+                "police science"
+              ],
+              "school": {
+                "domain": "george-lucero-and-smith.edu",
+                "facebook_url": "facebook.com/george-lucero-and-smith",
+                "id": null,
+                "linkedin_id": "18058986",
+                "linkedin_url": "linkedin.com/school/george-lucero-and-smith",
+                "location": {
+                  "continent": "north america",
+                  "country": "canada",
+                  "locality": "south aaron",
+                  "name": "south aaron, ontario, canada",
+                  "region": "ontario"
+                },
+                "name": "george, lucero and smith",
+                "twitter_url": "twitter.com/george-lucero-and-smith",
+                "type": "secondary school",
+                "website": "george-lucero-and-smith.edu"
+              },
+              "start_date": "2007-11-30"
+            },
+            {
+              "degrees": [
+                "bachelor of technology"
+              ],
+              "end_date": "2005-07-26",
+              "gpa": 3.1,
+              "majors": [
+                "computer science and engineering",
+                "indonesian",
+                "mechatronics and automation"
+              ],
+              "minors": [
+                "school student counseling",
+                "atmospheric science",
+                "italian language and culture"
+              ],
+              "school": {
+                "domain": "andrews-plc.edu",
+                "facebook_url": "facebook.com/andrews-plc",
+                "id": null,
+                "linkedin_id": "23858776",
+                "linkedin_url": "linkedin.com/school/andrews-plc",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "curtisborough",
+                  "name": "curtisborough, california, united states",
+                  "region": "california"
+                },
+                "name": "andrews plc",
+                "twitter_url": "twitter.com/andrews-plc",
+                "type": "primary school",
+                "website": "andrews-plc.edu"
+              },
+              "start_date": "2005-05-09"
+            }
+          ],
+          "experience": [
+            {
+              "company": {
+                "facebook_url": "facebook.com/dunn-zimmerman-and-kelly",
+                "founded": 1973,
+                "id": "xRz8fYUhp2DaczIoJ6ZzZNfOfcXM",
+                "industry": "writing and editing",
+                "industry_v2": "racetracks",
+                "linkedin_id": "76850631",
+                "linkedin_url": "linkedin.com/company/dunn-zimmerman-and-kelly",
+                "location": {
+                  "address_line_2": "suite 554",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "63.701262,127.402524",
+                  "locality": "jasminestad",
+                  "metro": "jasminestad",
+                  "name": "jasminestad, quebec, canada",
+                  "postal_code": "A9A 8A5",
+                  "region": "quebec",
+                  "street_address": "554 michele harbors apt. 123"
+                },
+                "name": "dunn, zimmerman and kelly",
+                "size": "10001+",
+                "twitter_url": "twitter.com/dunn-zimmerman-and-kelly",
+                "website": "dunn-zimmerman-and-kelly.com"
+              },
+              "end_date": "2021-12-11",
+              "is_primary": true,
+              "location_names": [
+                "jasminestad, quebec, canada"
+              ],
+              "start_date": "2019-08-11",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "vp",
+                  "vp"
+                ],
+                "name": "teacher, primary school",
+                "role": "education",
+                "sub_role": "primary_and_secondary"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/bond-reed-and-espinoza",
+                "founded": 2012,
+                "id": "Co0b2HE7qasDzPVC7SUpzeMueaZ8",
+                "industry": "alternative medicine",
+                "industry_v2": "business consulting and services",
+                "linkedin_id": "91542831",
+                "linkedin_url": "linkedin.com/company/bond-reed-and-espinoza",
+                "location": {
+                  "address_line_2": "suite 281",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "35.5695435,-154.099182",
+                  "locality": "north erik",
+                  "metro": "north erik",
+                  "name": "north erik, texas, united states",
+                  "postal_code": "82656",
+                  "region": "texas",
+                  "street_address": "990 jeanne shore apt. 704"
+                },
+                "name": "bond, reed and espinoza",
+                "size": "10001+",
+                "twitter_url": "twitter.com/bond-reed-and-espinoza",
+                "website": "bond-reed-and-espinoza.com"
+              },
+              "end_date": "2020-03-27",
+              "is_primary": false,
+              "location_names": [
+                "port nathan, british columbia, canada"
+              ],
+              "start_date": "2019-05-18",
+              "title": {
+                "class": null,
+                "levels": [
+                  "senior"
+                ],
+                "name": "toxicologist",
+                "role": null,
+                "sub_role": null
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/nicholson-reyes",
+                "founded": 2015,
+                "id": "rpj3GRcFizSRjr516CJBzZ9yIFCa",
+                "industry": "chemicals",
+                "industry_v2": "technology, information and media",
+                "linkedin_id": "60980724",
+                "linkedin_url": "linkedin.com/company/nicholson-reyes",
+                "location": {
+                  "address_line_2": "apt. 551",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "5.1634185,152.923311",
+                  "locality": "lake judyburgh",
+                  "metro": "lake judyburgh",
+                  "name": "lake judyburgh, texas, united states",
+                  "postal_code": "37876",
+                  "region": "texas",
+                  "street_address": "53857 wright branch"
+                },
+                "name": "nicholson-reyes",
+                "size": "10001+",
+                "twitter_url": "twitter.com/nicholson-reyes",
+                "website": "nicholson-reyes.com"
+              },
+              "end_date": "2018-06-20",
+              "is_primary": false,
+              "location_names": [
+                "north rachel, california, united states"
+              ],
+              "start_date": "2018-01-18",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp"
+                ],
+                "name": "insurance underwriter",
+                "role": "finance",
+                "sub_role": "risk"
+              }
+            }
+          ],
+          "facebook_id": "KsnawT",
+          "facebook_url": "facebook.com/aa73",
+          "facebook_username": "aa73",
+          "first_name": "ashley",
+          "full_name": "ashley armstrong",
+          "github_url": "github.com/aa73",
+          "github_username": "aa73",
+          "id": "KsnawTeliOXNIIPixiaptA_0000",
+          "industry": "writing and editing",
+          "interests": [
+            "recent"
+          ],
+          "job_company_facebook_url": "facebook.com/dunn-zimmerman-and-kelly",
+          "job_company_founded": 1973,
+          "job_company_id": "xRz8fYUhp2DaczIoJ6ZzZNfOfcXM",
+          "job_company_industry": "writing and editing",
+          "job_company_industry_v2": "racetracks",
+          "job_company_linkedin_id": "76850631",
+          "job_company_linkedin_url": "linkedin.com/company/dunn-zimmerman-and-kelly",
+          "job_company_location_address_line_2": "suite 554",
+          "job_company_location_continent": "north america",
+          "job_company_location_country": "canada",
+          "job_company_location_geo": "63.701262,127.402524",
+          "job_company_location_locality": "jasminestad",
+          "job_company_location_metro": "jasminestad",
+          "job_company_location_name": "jasminestad, quebec, canada",
+          "job_company_location_postal_code": "A9A 8A5",
+          "job_company_location_region": "quebec",
+          "job_company_location_street_address": "554 michele harbors apt. 123",
+          "job_company_name": "dunn, zimmerman and kelly",
+          "job_company_size": "10001+",
+          "job_company_twitter_url": "twitter.com/dunn-zimmerman-and-kelly",
+          "job_company_website": "dunn-zimmerman-and-kelly.com",
+          "job_last_changed": "2026-09-13",
+          "job_last_verified": "2026-09-13",
+          "job_start_date": "2019-08-11",
+          "job_title": "teacher, primary school",
+          "job_title_class": "services",
+          "job_title_levels": [
+            "vp",
+            "vp",
+            "vp"
+          ],
+          "job_title_role": "education",
+          "job_title_sub_role": "primary_and_secondary",
+          "last_initial": "a",
+          "last_name": "armstrong",
+          "linkedin_id": "KsnawT",
+          "linkedin_url": "linkedin.com/in/aa73",
+          "linkedin_username": "aa73",
+          "location_address_line_2": "suite 554",
+          "location_continent": "north america",
+          "location_country": "canada",
+          "location_geo": true,
+          "location_last_updated": "2026-09-13",
+          "location_locality": true,
+          "location_metro": true,
+          "location_name": true,
+          "location_names": true,
+          "location_postal_code": true,
+          "location_region": true,
+          "location_street_address": true,
+          "middle_initial": null,
+          "middle_name": null,
+          "regions": true,
+          "skills": [
+            "church"
+          ],
+          "twitter_url": "twitter.com/aa73",
+          "twitter_username": "aa73"
+        },
+        "match_score": 90,
+        "matched_on": [
+          "linkedin"
+        ]
+      },
+      {
+        "data": {
+          "countries": [
+            "canada",
+            "canada",
+            "united states"
+          ],
+          "dataset_version": "v35.2",
+          "education": [
+            {
+              "degrees": [
+                "doctor of veterinary medicine"
+              ],
+              "end_date": "2015-01-15",
+              "gpa": 3.0,
+              "majors": [
+                "meteorology",
+                "geology"
+              ],
+              "minors": [
+                "production tech"
+              ],
+              "school": {
+                "domain": "anderson-hughes-and-parker.edu",
+                "facebook_url": "facebook.com/anderson-hughes-and-parker",
+                "id": null,
+                "linkedin_id": "23560053",
+                "linkedin_url": "linkedin.com/school/anderson-hughes-and-parker",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "port allison",
+                  "name": "port allison, california, united states",
+                  "region": "california"
+                },
+                "name": "anderson, hughes and parker",
+                "twitter_url": "twitter.com/anderson-hughes-and-parker",
+                "type": "secondary school",
+                "website": "anderson-hughes-and-parker.edu"
+              },
+              "start_date": "2001-03-15"
+            },
+            {
+              "degrees": [
+                "master of science in software engineering"
+              ],
+              "end_date": "2008-02-29",
+              "gpa": 0.8,
+              "majors": [
+                "russian literature"
+              ],
+              "minors": [
+                "art education",
+                "tibetan language and literature",
+                "geochemistry"
+              ],
+              "school": {
+                "domain": "smith-llc.edu",
+                "facebook_url": "facebook.com/smith-llc",
+                "id": null,
+                "linkedin_id": "3587266",
+                "linkedin_url": "linkedin.com/school/smith-llc",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "carrstad",
+                  "name": "carrstad, california, united states",
+                  "region": "california"
+                },
+                "name": "smith llc",
+                "twitter_url": "twitter.com/smith-llc",
+                "type": "secondary school",
+                "website": "smith-llc.edu"
+              },
+              "start_date": "2002-08-16"
+            },
+            {
+              "degrees": [
+                "bachelor of science in education"
+              ],
+              "end_date": "2008-01-31",
+              "gpa": 1.7,
+              "majors": [
+                "biblical studies",
+                "italian language"
+              ],
+              "minors": [
+                "human resource development"
+              ],
+              "school": {
+                "domain": "townsend-inc.edu",
+                "facebook_url": "facebook.com/townsend-inc",
+                "id": null,
+                "linkedin_id": "12722668",
+                "linkedin_url": "linkedin.com/school/townsend-inc",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "shawview",
+                  "name": "shawview, new york, united states",
+                  "region": "new york"
+                },
+                "name": "townsend inc",
+                "twitter_url": "twitter.com/townsend-inc",
+                "type": "secondary school",
+                "website": "townsend-inc.edu"
+              },
+              "start_date": "2005-02-15"
+            }
+          ],
+          "experience": [
+            {
+              "company": {
+                "facebook_url": "facebook.com/ruiz-lopez-and-howard",
+                "founded": 1973,
+                "id": "rXprnr91wpPOt6GMJFLqE2zkLgCI",
+                "industry": "recreational facilities and services",
+                "industry_v2": "radio and television broadcasting",
+                "linkedin_id": "77138445",
+                "linkedin_url": "linkedin.com/company/ruiz-lopez-and-howard",
+                "location": {
+                  "address_line_2": "suite 365",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "64.276891,128.553782",
+                  "locality": "kellerfurt",
+                  "metro": "kellerfurt",
+                  "name": "kellerfurt, quebec, canada",
+                  "postal_code": "A9A 7A3",
+                  "region": "quebec",
+                  "street_address": "365 rachel loaf apt. 275"
+                },
+                "name": "ruiz, lopez and howard",
+                "size": "10001+",
+                "twitter_url": "twitter.com/ruiz-lopez-and-howard",
+                "website": "ruiz-lopez-and-howard.com"
+              },
+              "end_date": "2021-08-12",
+              "is_primary": true,
+              "location_names": [
+                "kellerfurt, quebec, canada"
+              ],
+              "start_date": "2019-08-12",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "vp",
+                  "vp"
+                ],
+                "name": "teacher, special educational needs",
+                "role": "education",
+                "sub_role": "primary_and_secondary"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/lopez-howard-and-winters",
+                "founded": 1987,
+                "id": "yCYPjEDpbrBQUIL0Bc7qcCSSNgcE",
+                "industry": "design",
+                "industry_v2": "non-profit organizations",
+                "linkedin_id": "98967408",
+                "linkedin_url": "linkedin.com/company/lopez-howard-and-winters",
+                "location": {
+                  "address_line_2": "apt. 287",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "66.521912,131.433686",
+                  "locality": "salinasfurt",
+                  "metro": "salinasfurt",
+                  "name": "salinasfurt, new york, united states",
+                  "postal_code": "92070",
+                  "region": "new york",
+                  "street_address": "542 lamb ferry"
+                },
+                "name": "lopez, howard and winters",
+                "size": "10001+",
+                "twitter_url": "twitter.com/lopez-howard-and-winters",
+                "website": "lopez-howard-and-winters.com"
+              },
+              "end_date": "2020-07-17",
+              "is_primary": false,
+              "location_names": [
+                "millerstad, new york, united states",
+                "davenportland, texas, united states",
+                "lake richard, quebec, canada"
+              ],
+              "start_date": "2019-11-20",
+              "title": {
+                "class": null,
+                "levels": [
+                  "partner",
+                  "vp",
+                  "owner"
+                ],
+                "name": "sub",
+                "role": null,
+                "sub_role": null
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/hall-cline-and-garcia",
+                "founded": 1923,
+                "id": "2tSIwvdHc7hKreEpnvzyAqJgMrCI",
+                "industry": "insurance",
+                "industry_v2": "sightseeing transportation",
+                "linkedin_id": "86463399",
+                "linkedin_url": "linkedin.com/company/hall-cline-and-garcia",
+                "location": {
+                  "address_line_2": "apt. 056",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "-34.8227015,-41.436254",
+                  "locality": "navarroshire",
+                  "metro": "navarroshire",
+                  "name": "navarroshire, ontario, canada",
+                  "postal_code": "A3A 3A3",
+                  "region": "ontario",
+                  "street_address": "331 stephen forge"
+                },
+                "name": "hall, cline and garcia",
+                "size": "10001+",
+                "twitter_url": "twitter.com/hall-cline-and-garcia",
+                "website": "hall-cline-and-garcia.com"
+              },
+              "end_date": "2019-04-09",
+              "is_primary": false,
+              "location_names": [
+                "taylorburgh, ontario, canada"
+              ],
+              "start_date": "2018-12-10",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "entry",
+                  "manager"
+                ],
+                "name": "psychologist, occupational",
+                "role": "health",
+                "sub_role": "therapy"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/weber-blackburn-and-briggs",
+                "founded": 1944,
+                "id": "mEHDlFtTEjCl7iM3RxuM02H58T9d",
+                "industry": "computer games",
+                "industry_v2": "wholesale raw farm products",
+                "linkedin_id": "82537187",
+                "linkedin_url": "linkedin.com/company/weber-blackburn-and-briggs",
+                "location": {
+                  "address_line_2": "suite 231",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "-32.7931485,-158.963314",
+                  "locality": "alexandraport",
+                  "metro": "alexandraport",
+                  "name": "alexandraport, texas, united states",
+                  "postal_code": "90554",
+                  "region": "texas",
+                  "street_address": "01767 baker flats"
+                },
+                "name": "weber, blackburn and briggs",
+                "size": "10001+",
+                "twitter_url": "twitter.com/weber-blackburn-and-briggs",
+                "website": "weber-blackburn-and-briggs.com"
+              },
+              "end_date": "2020-09-11",
+              "is_primary": false,
+              "location_names": [
+                "port robert, british columbia, canada"
+              ],
+              "start_date": "2018-08-11",
+              "title": {
+                "class": null,
+                "levels": [
+                  "senior"
+                ],
+                "name": "ecologist",
+                "role": null,
+                "sub_role": null
+              }
+            }
+          ],
+          "facebook_id": "IubiuJ",
+          "facebook_url": "facebook.com/aa73",
+          "facebook_username": "aa73",
+          "first_name": "autumn",
+          "full_name": "autumn andrews",
+          "github_url": "github.com/aa73",
+          "github_username": "aa73",
+          "id": "IubiuJytSPtgUsJTQjfKPx_0000",
+          "industry": "recreational facilities and services",
+          "interests": [
+            "wife",
+            "where",
+            "discover"
+          ],
+          "job_company_facebook_url": "facebook.com/ruiz-lopez-and-howard",
+          "job_company_founded": 1973,
+          "job_company_id": "rXprnr91wpPOt6GMJFLqE2zkLgCI",
+          "job_company_industry": "recreational facilities and services",
+          "job_company_industry_v2": "radio and television broadcasting",
+          "job_company_linkedin_id": "77138445",
+          "job_company_linkedin_url": "linkedin.com/company/ruiz-lopez-and-howard",
+          "job_company_location_address_line_2": "suite 365",
+          "job_company_location_continent": "north america",
+          "job_company_location_country": "canada",
+          "job_company_location_geo": "64.276891,128.553782",
+          "job_company_location_locality": "kellerfurt",
+          "job_company_location_metro": "kellerfurt",
+          "job_company_location_name": "kellerfurt, quebec, canada",
+          "job_company_location_postal_code": "A9A 7A3",
+          "job_company_location_region": "quebec",
+          "job_company_location_street_address": "365 rachel loaf apt. 275",
+          "job_company_name": "ruiz, lopez and howard",
+          "job_company_size": "10001+",
+          "job_company_twitter_url": "twitter.com/ruiz-lopez-and-howard",
+          "job_company_website": "ruiz-lopez-and-howard.com",
+          "job_last_changed": "2026-09-13",
+          "job_last_verified": "2026-09-13",
+          "job_start_date": "2019-08-12",
+          "job_title": "teacher, special educational needs",
+          "job_title_class": "services",
+          "job_title_levels": [
+            "vp",
+            "vp",
+            "vp"
+          ],
+          "job_title_role": "education",
+          "job_title_sub_role": "primary_and_secondary",
+          "last_initial": "a",
+          "last_name": "andrews",
+          "linkedin_id": "IubiuJ",
+          "linkedin_url": "linkedin.com/in/aa73",
+          "linkedin_username": "aa73",
+          "location_address_line_2": "suite 365",
+          "location_continent": "north america",
+          "location_country": "canada",
+          "location_geo": true,
+          "location_last_updated": "2026-09-13",
+          "location_locality": true,
+          "location_metro": true,
+          "location_name": true,
+          "location_names": true,
+          "location_postal_code": true,
+          "location_region": true,
+          "location_street_address": true,
+          "middle_initial": null,
+          "middle_name": null,
+          "regions": true,
+          "skills": [],
+          "twitter_url": "twitter.com/aa73",
+          "twitter_username": "aa73"
+        },
+        "match_score": 90,
+        "matched_on": [
+          "linkedin"
+        ]
+      },
+      {
+        "data": {
+          "countries": [
+            "canada",
+            "united states",
+            "united states"
+          ],
+          "dataset_version": "v35.2",
+          "education": [
+            {
+              "degrees": [
+                "bachelor of architecture"
+              ],
+              "end_date": "2010-04-22",
+              "gpa": 3.8,
+              "majors": [
+                "occupational therapy"
+              ],
+              "minors": [
+                "screen art and cultures",
+                "organizational and professional communications"
+              ],
+              "school": {
+                "domain": "cardenas-day-and-cummings.edu",
+                "facebook_url": "facebook.com/cardenas-day-and-cummings",
+                "id": null,
+                "linkedin_id": "4015133",
+                "linkedin_url": "linkedin.com/school/cardenas-day-and-cummings",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "south miguelstad",
+                  "name": "south miguelstad, texas, united states",
+                  "region": "texas"
+                },
+                "name": "cardenas, day and cummings",
+                "twitter_url": "twitter.com/cardenas-day-and-cummings",
+                "type": "secondary school",
+                "website": "cardenas-day-and-cummings.edu"
+              },
+              "start_date": "2001-11-05"
+            },
+            {
+              "degrees": [
+                "bachelor of science in education"
+              ],
+              "end_date": "2011-03-02",
+              "gpa": 2.0,
+              "majors": [
+                "organizational communications",
+                "spanish literature",
+                "astronomy and astrophysics"
+              ],
+              "minors": [
+                "russian studies"
+              ],
+              "school": {
+                "domain": "campbell-inc.edu",
+                "facebook_url": "facebook.com/campbell-inc",
+                "id": null,
+                "linkedin_id": "83454045",
+                "linkedin_url": "linkedin.com/school/campbell-inc",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "south miguel",
+                  "name": "south miguel, new york, united states",
+                  "region": "new york"
+                },
+                "name": "campbell inc",
+                "twitter_url": "twitter.com/campbell-inc",
+                "type": "post-secondary institution",
+                "website": "campbell-inc.edu"
+              },
+              "start_date": "2006-04-24"
+            },
+            {
+              "degrees": [
+                "bachelor of architecture"
+              ],
+              "end_date": "2014-11-15",
+              "gpa": 4.4,
+              "majors": [
+                "homeland security",
+                "applied linguistics",
+                "archeology"
+              ],
+              "minors": [
+                "epidemiology"
+              ],
+              "school": {
+                "domain": "warner-miller.edu",
+                "facebook_url": "facebook.com/warner-miller",
+                "id": null,
+                "linkedin_id": "96816612",
+                "linkedin_url": "linkedin.com/school/warner-miller",
+                "location": {
+                  "continent": "north america",
+                  "country": "united states",
+                  "locality": "jordanmouth",
+                  "name": "jordanmouth, texas, united states",
+                  "region": "texas"
+                },
+                "name": "warner-miller",
+                "twitter_url": "twitter.com/warner-miller",
+                "type": "post-secondary institution",
+                "website": "warner-miller.edu"
+              },
+              "start_date": "2002-06-14"
+            }
+          ],
+          "experience": [
+            {
+              "company": {
+                "facebook_url": "facebook.com/schroeder-powers-and-lewis",
+                "founded": 1973,
+                "id": "bFmRDSC9SR1ZfRLKLVqrGpOINI77",
+                "industry": "writing and editing",
+                "industry_v2": "racetracks",
+                "linkedin_id": "76832809",
+                "linkedin_url": "linkedin.com/company/schroeder-powers-and-lewis",
+                "location": {
+                  "address_line_2": "suite 317",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "63.665618,127.331236",
+                  "locality": "powersborough",
+                  "metro": "powersborough",
+                  "name": "powersborough, quebec, canada",
+                  "postal_code": "A9A 6A3",
+                  "region": "quebec",
+                  "street_address": "317 charles parks apt. 422"
+                },
+                "name": "schroeder, powers and lewis",
+                "size": "10001+",
+                "twitter_url": "twitter.com/schroeder-powers-and-lewis",
+                "website": "schroeder-powers-and-lewis.com"
+              },
+              "end_date": "2021-04-03",
+              "is_primary": true,
+              "location_names": [
+                "powersborough, quebec, canada"
+              ],
+              "start_date": "2019-08-11",
+              "title": {
+                "class": null,
+                "levels": [
+                  "vp",
+                  "vp",
+                  "vp"
+                ],
+                "name": "teacher, primary school",
+                "role": "education",
+                "sub_role": "primary_and_secondary"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/mcguire-davis-and-freeman",
+                "founded": 1915,
+                "id": "nFMEV0bikQ3dSg9tdXkgNX7x1Vk6",
+                "industry": "commercial real estate",
+                "industry_v2": "wholesale computer equipment",
+                "linkedin_id": "42462515",
+                "linkedin_url": "linkedin.com/company/mcguire-davis-and-freeman",
+                "location": {
+                  "address_line_2": "apt. 655",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "-61.9463735,-39.104855",
+                  "locality": "port kyle",
+                  "metro": "port kyle",
+                  "name": "port kyle, ontario, canada",
+                  "postal_code": "A0A 1A2",
+                  "region": "ontario",
+                  "street_address": "52820 alison forks"
+                },
+                "name": "mcguire, davis and freeman",
+                "size": "10001+",
+                "twitter_url": "twitter.com/mcguire-davis-and-freeman",
+                "website": "mcguire-davis-and-freeman.com"
+              },
+              "end_date": "2020-07-13",
+              "is_primary": false,
+              "location_names": [
+                "port patrick, new york, united states"
+              ],
+              "start_date": "2019-04-28",
+              "title": {
+                "class": null,
+                "levels": [
+                  "entry",
+                  "cxo",
+                  "unpaid"
+                ],
+                "name": "retail manager",
+                "role": "hospitality",
+                "sub_role": "retail"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/diaz-and-sons",
+                "founded": 1988,
+                "id": "APNzMffLl7i5qlDoT8flTTJR2icY",
+                "industry": "motion pictures and film",
+                "industry_v2": "environmental services",
+                "linkedin_id": "12333920",
+                "linkedin_url": "linkedin.com/company/diaz-and-sons",
+                "location": {
+                  "address_line_2": "suite 269",
+                  "continent": "north america",
+                  "country": "canada",
+                  "geo": "70.0106445,-155.093503",
+                  "locality": "lake sandrastad",
+                  "metro": "lake sandrastad",
+                  "name": "lake sandrastad, ontario, canada",
+                  "postal_code": "A9A 6A7",
+                  "region": "ontario",
+                  "street_address": "60720 erika harbors apt. 057"
+                },
+                "name": "diaz and sons",
+                "size": "10001+",
+                "twitter_url": "twitter.com/diaz-and-sons",
+                "website": "diaz-and-sons.com"
+              },
+              "end_date": "2019-06-22",
+              "is_primary": false,
+              "location_names": [
+                "pierceview, quebec, canada"
+              ],
+              "start_date": "2018-06-21",
+              "title": {
+                "class": null,
+                "levels": [
+                  "owner",
+                  "director",
+                  "manager"
+                ],
+                "name": "fitness centre manager",
+                "role": "health",
+                "sub_role": "fitness"
+              }
+            },
+            {
+              "company": {
+                "facebook_url": "facebook.com/williams-morales",
+                "founded": 1976,
+                "id": "cppFEboovR3s2GHGxgKaaYztNLSJ",
+                "industry": "farming",
+                "industry_v2": "medical and diagnostic laboratories",
+                "linkedin_id": "89938038",
+                "linkedin_url": "linkedin.com/company/williams-morales",
+                "location": {
+                  "address_line_2": "apt. 411",
+                  "continent": "north america",
+                  "country": "united states",
+                  "geo": "-49.1947345,-37.584750",
+                  "locality": "south teresa",
+                  "metro": "south teresa",
+                  "name": "south teresa, texas, united states",
+                  "postal_code": "36465",
+                  "region": "texas",
+                  "street_address": "167 stevens branch apt. 045"
+                },
+                "name": "williams-morales",
+                "size": "10001+",
+                "twitter_url": "twitter.com/williams-morales",
+                "website": "williams-morales.com"
+              },
+              "end_date": "2019-07-16",
+              "is_primary": false,
+              "location_names": [
+                "south stephen, texas, united states",
+                "cameronstad, quebec, canada"
+              ],
+              "start_date": "2018-07-03",
+              "title": {
+                "class": null,
+                "levels": [
+                  "unpaid"
+                ],
+                "name": "charity officer",
+                "role": null,
+                "sub_role": null
+              }
+            }
+          ],
+          "facebook_id": "IlSKGd",
+          "facebook_url": "facebook.com/aa73",
+          "facebook_username": "aa73",
+          "first_name": "ashley",
+          "full_name": "ashley armstrong",
+          "github_url": "github.com/aa73",
+          "github_username": "aa73",
+          "id": "IlSKGdzNOisAhQHLBlvQai_0000",
+          "industry": "writing and editing",
+          "interests": [],
+          "job_company_facebook_url": "facebook.com/schroeder-powers-and-lewis",
+          "job_company_founded": 1973,
+          "job_company_id": "bFmRDSC9SR1ZfRLKLVqrGpOINI77",
+          "job_company_industry": "writing and editing",
+          "job_company_industry_v2": "racetracks",
+          "job_company_linkedin_id": "76832809",
+          "job_company_linkedin_url": "linkedin.com/company/schroeder-powers-and-lewis",
+          "job_company_location_address_line_2": "suite 317",
+          "job_company_location_continent": "north america",
+          "job_company_location_country": "canada",
+          "job_company_location_geo": "63.665618,127.331236",
+          "job_company_location_locality": "powersborough",
+          "job_company_location_metro": "powersborough",
+          "job_company_location_name": "powersborough, quebec, canada",
+          "job_company_location_postal_code": "A9A 6A3",
+          "job_company_location_region": "quebec",
+          "job_company_location_street_address": "317 charles parks apt. 422",
+          "job_company_name": "schroeder, powers and lewis",
+          "job_company_size": "10001+",
+          "job_company_twitter_url": "twitter.com/schroeder-powers-and-lewis",
+          "job_company_website": "schroeder-powers-and-lewis.com",
+          "job_last_changed": "2026-09-13",
+          "job_last_verified": "2026-09-13",
+          "job_start_date": "2019-08-11",
+          "job_title": "teacher, primary school",
+          "job_title_class": "services",
+          "job_title_levels": [
+            "vp",
+            "vp",
+            "vp"
+          ],
+          "job_title_role": "education",
+          "job_title_sub_role": "primary_and_secondary",
+          "last_initial": "a",
+          "last_name": "armstrong",
+          "linkedin_id": "IlSKGd",
+          "linkedin_url": "linkedin.com/in/aa73",
+          "linkedin_username": "aa73",
+          "location_address_line_2": "suite 317",
+          "location_continent": "north america",
+          "location_country": "canada",
+          "location_geo": true,
+          "location_last_updated": "2026-09-13",
+          "location_locality": true,
+          "location_metro": true,
+          "location_name": true,
+          "location_names": true,
+          "location_postal_code": true,
+          "location_region": true,
+          "location_street_address": true,
+          "middle_initial": null,
+          "middle_name": null,
+          "regions": true,
+          "skills": [
+            "science",
+            "across",
+            "along"
+          ],
+          "twitter_url": "twitter.com/aa73",
+          "twitter_username": "aa73"
+        },
+        "match_score": 90,
+        "matched_on": [
+          "linkedin"
+        ]
+      }
+    ],
+    "status": 200
+  },
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit": "{\"minute\": 10}",
+    "x-ratelimit-remaining": "{\"minute\": 9}",
+    "x-ratelimit-reset": "2026-09-25 14:19:39"
+  },
+  "request": {
+    "kind": "identify",
+    "params": {
+      "profile": "linkedin.com/in/aa73"
+    },
+    "sandbox": true
+  },
+  "status": 200
+}

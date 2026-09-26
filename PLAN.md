@@ -688,6 +688,17 @@ plus the one recurring charge the MVP still had.
 > 10 MB minimum per query. Skipped as paid or low value: Iceberg MERGE, CodeDeploy canaries,
 > a CloudTrail trail, Glue Data Quality, GuardDuty, Config, Macie, S3 data events.
 
+### Final destroy → apply check — 2026-09-26, `v1.2.1`
+
+Repeated after the $0 pass, with the data bucket (326 objects) and the state table (56
+items) backed up and restored around it: 75 resources destroyed in 76 s, 75 created in
+135 s, 95 resources in state, outputs identical, no drift afterwards. The append-only raw
+layer let the deployer's `force_destroy` through as designed. On the rebuilt stack the
+cached demo batch ran at zero credits with the Athena count matching, all six saved queries
+and the `person_current` view answered, the IAM check passed, and the analyzer's expected
+findings were archived by rule. The two manual steps remain the SNS confirmation email and
+`make set-api-key`; the stack is left running.
+
 ## 9. Credit and cost budget
 
 **API credits (PDL free plan, per calendar month):**

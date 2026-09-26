@@ -529,6 +529,43 @@ with a commit/tag and a working state you could submit if you ran out of time.
 4. Idempotency proof: re-upload the same CSV → all rows `cached`, 0 credits.
    *Done when:* CI enforces everything and the re-upload test passes.
 
+### Phase 6b — Data guards (added 2026-09-26) — ✅ done 2026-09-26
+
+Requested after Phase 6: rules for input that does not look like what the ETL expects,
+because registration exports are rarely clean. Three layers, each with its own response;
+the code lives in `src/enrich_pipeline/guards.py` and the thresholds are Terraform
+variables (`max_input_bytes`, `max_invalid_fraction`, `min_match_rate`) passed to the
+functions as environment variables and mirrored by CLI flags.
+
+| Layer | Rule | Response |
+|---|---|---|
+| File | object larger than `max_input_bytes` (5 MB) | batch fails before the body is read |
+| File | not UTF-8: UTF-16 with BOM decoded; anything else read as Windows-1252 | accepted, warning |
+| File | NUL bytes (binary, or UTF-16 without BOM) | batch fails |
+| File | delimiter `;`, tab or `\|` instead of `,` (sniffed on the header line) | accepted, warning |
+| File | missing `first_name`/`last_name` header, no header, header but no rows | batch fails with the header it saw |
+| File | unknown or duplicate columns | ignored, warning lists them |
+| File | every data row rejected | batch fails, top reasons in the message |
+| File | more than `max_invalid_fraction` (50 %) of 5+ rows rejected | batch fails: the columns probably do not hold what the header says |
+| Row | name empty, > 100 chars, contains digits, no letters, contains `@`, or a placeholder (`test`, `n/a`, `unknown`, a repeated header row, …) | row `invalid_input` with the field and reason |
+| Row | invisible characters (zero-width, stray BOM, control chars) | removed silently |
+| Row | email malformed or > 254 chars | dropped, row continues, note `input.email_invalid` |
+| Row | LinkedIn URL not `linkedin.com/in/…` (scheme, `www`, tracking parameters stripped first) | dropped, note `input.linkedin_url_invalid`; valid URLs canonicalised so the cache key is stable |
+| Row | company or location > 200 chars, or not an employer/place (`self-employed`, `student`, `n/a`, …) | dropped, note `input.<field>_placeholder` / `_too_long` |
+| Match | input surname shares no token with the profile's names (accent-insensitive) | kept, flag `match.name_mismatch` |
+| Match | profile has no name, or neither a current title nor company | flag `match.sparse_profile` |
+| Match | no employment history | flag `match.no_employment` |
+| Match | enrich likelihood at the `enrich_min_likelihood` floor | flag `match.likelihood_at_floor` |
+| Match | employment dates not `YYYY[-MM[-DD]]` with a real month/day, or end before start | flag `match.malformed_dates` / `match.end_before_start` |
+| Output | one `fact_lookup` row per input row, unique row numbers, unique non-null `person_id`, no orphan employment rows, persons ≤ matched lookups | curated step fails (execution FAILED, email) instead of writing inconsistent tables |
+| Output | Parquet footer row counts and column names re-read after writing | same |
+| Batch | matched share of valid rows below `min_match_rate` (20 %, 5+ rows); ≥ 20 % rows rejected; matched rows carrying `match.*` flags; rows with no result; decoding/delimiter fallbacks | `quality` block in the manifest, `quality_flags` column on `dim_person` and `fact_lookup`, "completed with warnings" email listing them |
+
+> Deviations: rows are salvaged rather than rejected whenever a name remains usable, so
+> the row count in `fact_lookup` stays one per input row and the reason for every drop is
+> queryable; no new CloudWatch metrics were added (the account already exceeds the ten
+> always-free custom metrics), the notification path carries the warnings instead.
+
 ### Design-section audit before Phase 7 — 2026-09-26
 
 Sections 3 to 7, 9 and 10 were checked line by line against the code and the deployed
@@ -560,9 +597,14 @@ console-created only (now `aws_budgets_budget`); the `owner` tag (7) was missing
 ### Phase 7 — README, ADRs, demo, teardown (2 h)
 
 1. README per section 11; Mermaid architecture diagram; assumptions list; failure table (5.3).
-2. Fresh-account walkthrough: `make bootstrap && make apply && make set-api-key && make upload`.
-3. Final `destroy` → `apply` → mock run to prove reproducibility; tag `v1.0.0`.
-4. Leave the account destroyed (or only S3/Glue up) to avoid any charges.
+2. Account-level S3 Block Public Access: `aws_s3_account_public_access_block` with all four
+   settings on, in `infra/bootstrap` (account-wide, applied once, next to the state bucket),
+   so buckets created outside this project are covered too. Verify with
+   `aws s3control get-public-access-block --account-id <id>` and note it in the README's
+   security section; the per-bucket blocks stay as defence in depth.
+3. Fresh-account walkthrough: `make bootstrap && make apply && make set-api-key && make upload`.
+4. Final `destroy` → `apply` → mock run to prove reproducibility; tag `v1.0.0`.
+5. Leave the account destroyed (or only S3/Glue up) to avoid any charges.
 
 ---
 

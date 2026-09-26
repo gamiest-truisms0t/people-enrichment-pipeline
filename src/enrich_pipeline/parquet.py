@@ -61,4 +61,27 @@ def write_tables(
     for table in TABLES:
         path = curated_path(out_dir, table, batch_date, batch_id)
         written[table] = write_table(tables.get(table, []), table=table, path=path)
+    verify_written(written, tables)
     return written
+
+
+def verify_written(files: dict[str, Path], tables: dict[str, list[dict[str, Any]]]) -> None:
+    """Read each file's footer back and compare row counts and schema with what was written.
+
+    Raises OutputCheckError so a truncated or mis-typed file never reaches the curated
+    prefix. The check reads only Parquet metadata, not the row groups.
+    """
+    import pyarrow.parquet as pq
+
+    from enrich_pipeline.guards import OutputCheckError
+
+    for table, path in files.items():
+        metadata = pq.read_metadata(path)
+        expected_rows = len(tables.get(table, []))
+        if metadata.num_rows != expected_rows:
+            raise OutputCheckError(
+                f"{table}: {path.name} holds {metadata.num_rows} rows, expected {expected_rows}"
+            )
+        names = pq.read_schema(path).names
+        if names != [c.name for c in TABLES[table]]:
+            raise OutputCheckError(f"{table}: {path.name} columns differ from schema.py")

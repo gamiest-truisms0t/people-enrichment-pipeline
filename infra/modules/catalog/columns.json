@@ -104,6 +104,11 @@
         "comment": ""
       },
       {
+        "name": "quality_flags",
+        "type": "array<string>",
+        "comment": "input.* notes and match.* doubts (data guards)"
+      },
+      {
         "name": "enriched_at",
         "type": "timestamp",
         "comment": ""
@@ -291,6 +296,11 @@
         "name": "raw_ref",
         "type": "string",
         "comment": ""
+      },
+      {
+        "name": "quality_flags",
+        "type": "array<string>",
+        "comment": "input.* notes and match.* doubts (data guards)"
       },
       {
         "name": "requested_at",

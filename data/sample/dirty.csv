@@ -1,0 +1,11 @@
+First Name,Last Name,E-mail,Company,Location,LinkedIn,Ticket Type
+John,Doe,john.doe@example,,,,VIP
+Jane,Smith,,n/a,,https://www.linkedin.com/in/jane-smith-mock/,Standard
+Alex,Lee,,,,not-a-profile-url,Standard
+ José ,García,,Acme Corp,Singapore,,Standard
+test,test,,,,,Standard
+R2,D2,,,,,Standard
+john.doe@example.com,Doe,,,,,Standard
+First Name,Last Name,E-mail,Company,Location,LinkedIn,Ticket Type
+,,,,,,
+John,Doe,,,,,Standard

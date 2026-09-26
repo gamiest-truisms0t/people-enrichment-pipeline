@@ -132,6 +132,8 @@
         "employment_rows.$": "$.Payload.employment_rows",
         "credits_spent.$": "$.Payload.credits_spent",
         "status_counts.$": "$.Payload.status_counts",
+        "quality_warnings.$": "$.Payload.quality.warning_count",
+        "quality_notes.$": "$.Payload.quality.notes",
         "manifest_ref.$": "$.Payload.manifest_ref"
       },
       "ResultPath": "$.curated",
@@ -175,10 +177,19 @@
     },
     "AnyRowErrors": {
       "Type": "Choice",
+      "Comment": "Notify when a row crashed or the curated step raised data-quality warnings (low match rate, many rejected rows, flagged matches, decoding fallbacks).",
       "Choices": [
         {
-          "Variable": "$.summary.row_errors",
-          "NumericGreaterThan": 0,
+          "Or": [
+            {
+              "Variable": "$.summary.row_errors",
+              "NumericGreaterThan": 0
+            },
+            {
+              "Variable": "$.summary.curated.quality_warnings",
+              "NumericGreaterThan": 0
+            }
+          ],
           "Next": "NotifyPartialFailure"
         }
       ],
@@ -189,8 +200,8 @@
       "Resource": "arn:aws:states:::sns:publish",
       "Parameters": {
         "TopicArn": "${alerts_topic_arn}",
-        "Subject": "People-enrichment: batch completed with row errors",
-        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows (input row numbers {}). Persons curated: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.failed_rows, $.summary.curated.persons, $.summary.curated.manifest_ref, $$.Execution.Id)"
+        "Subject": "People-enrichment: batch completed with warnings",
+        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows (input row numbers {}) and {} data-quality warning(s): {}. Persons curated: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.failed_rows, $.summary.curated.quality_warnings, $.summary.curated.quality_notes, $.summary.curated.persons, $.summary.curated.manifest_ref, $$.Execution.Id)"
       },
       "ResultPath": null,
       "Next": "Succeeded"

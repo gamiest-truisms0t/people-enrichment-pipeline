@@ -11,6 +11,7 @@ from enrich_pipeline.providers.mock import MockProvider
 from enrich_pipeline.runner import run_batch
 
 SAMPLE = Path(__file__).resolve().parents[2] / "data" / "sample" / "names.csv"
+DIRTY = SAMPLE.with_name("dirty.csv")
 
 
 def _parquet(out: Path, table: str) -> str:
@@ -113,3 +114,26 @@ def test_cli_json_summary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     summary = json.loads(capsys.readouterr().out)
     assert summary["batch_id"] == "j"
     assert summary["credits_spent"] == 3
+    assert summary["quality"]["warnings"] == []
+
+
+def test_cli_dirty_sample_salvages_rows_and_prints_warnings(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(["run", "--input", str(DIRTY), "--out", str(tmp_path), "--provider", "mock"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "rows: 5 valid, 4 invalid" in out
+    assert "warning: ignored_columns: Ticket Type" in out
+    assert "warning: high_invalid_rate: 4 of 9 rows rejected (44%)" in out
+
+
+def test_cli_rejects_a_file_that_is_mostly_junk(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    junk = tmp_path / "junk.csv"
+    junk.write_text("first_name,last_name\n" + "test,test\n" * 6 + "John,Doe\n" * 2)
+    code = main(["run", "--input", str(junk), "--out", str(tmp_path / "out"), "--provider", "mock"])
+    assert code == 2
+    assert "input rejected: 6 of 8 rows rejected (75%)" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()  # nothing written for a rejected file

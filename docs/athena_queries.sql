@@ -13,7 +13,8 @@ SELECT batch_date,
        location_country,
        linkedin_url,
        match_likelihood,
-       lookup_method
+       lookup_method,
+       quality_flags
 FROM people_enrichment_dev.dim_person
 WHERE batch_date >= CAST(current_date - interval '30' day AS varchar)
 ORDER BY batch_date DESC, full_name;

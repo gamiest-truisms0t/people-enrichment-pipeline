@@ -17,6 +17,9 @@ locals {
     PDL_API_KEY_PARAM            = module.secrets.pdl_api_key_parameter_name
     PDL_SANDBOX                  = var.pdl_sandbox ? "1" : "0"
     MAX_ROWS                     = tostring(var.max_rows)
+    MAX_INPUT_BYTES              = tostring(var.max_input_bytes)
+    MAX_INVALID_FRACTION         = tostring(var.max_invalid_fraction)
+    MIN_MATCH_RATE               = tostring(var.min_match_rate)
     MAX_ENRICH_CREDITS           = tostring(var.max_enrich_credits)
     MAX_IDENTIFY_CREDITS         = tostring(var.max_identify_credits)
     IDENTIFY_MIN_SCORE           = tostring(var.identify_min_score)

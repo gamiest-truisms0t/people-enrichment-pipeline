@@ -15,7 +15,9 @@ from enrich_pipeline.handlers import build_curated, common, enrich, validate_inp
 from enrich_pipeline.ingest import InputError
 from enrich_pipeline.models import InputRow
 
-from .conftest import DATA, LANDING, SAMPLE_KEY, FakeContext
+from .conftest import DATA, LANDING, SAMPLE, SAMPLE_KEY, FakeContext
+
+DIRTY = SAMPLE.with_name("dirty.csv")
 
 
 def _keys(s3: Any, prefix: str) -> list[str]:
@@ -102,6 +104,7 @@ def test_validate_then_enrich_then_build(
         "matched": 2,
         "not_found": 1,
     }
+    assert manifest["quality"]["warnings"] == []  # clean sample: nothing to report
     assert set(manifest["files"]) == {"dim_person", "fact_employment", "fact_lookup"}
 
     person_key = common.curated_key("dim_person", batch_date, batch_id)
@@ -259,3 +262,94 @@ def test_validate_rejects_a_bad_header(aws: dict[str, Any], lambda_context: Fake
     aws["s3"].put_object(Bucket=LANDING, Key="incoming/bad/bad.csv", Body=b"name\nJohn Doe\n")
     with pytest.raises(InputError, match="missing required"):
         validate_input.handler({"bucket": LANDING, "key": "incoming/bad/bad.csv"}, lambda_context)
+
+
+def test_validate_file_guards_abort_junk_and_oversized_files(
+    aws: dict[str, Any], lambda_context: FakeContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    s3 = aws["s3"]
+    junk = b"first_name,last_name\n" + b"test,test\n" * 6 + b"John,Doe\n" * 2
+    s3.put_object(Bucket=LANDING, Key="incoming/junk/junk.csv", Body=junk)
+    with pytest.raises(InputError, match=r"6 of 8 rows rejected \(75%\)"):
+        validate_input.handler({"bucket": LANDING, "key": "incoming/junk/junk.csv"}, lambda_context)
+
+    monkeypatch.setenv("MAX_INPUT_BYTES", "10")
+    with pytest.raises(InputError, match="above the 10 byte limit"):
+        validate_input.handler({"bucket": LANDING, "key": SAMPLE_KEY}, lambda_context)
+
+
+def test_dirty_file_is_salvaged_row_by_row_and_the_batch_warns(
+    aws: dict[str, Any], lambda_context: FakeContext
+) -> None:
+    """data/sample/dirty.csv: bad optional fields are dropped with notes, junk rows are
+    rejected with reasons, extra columns are ignored, and the batch completes with
+    data-quality warnings that reach the manifest (and, in AWS, the notification)."""
+    s3 = aws["s3"]
+    s3.put_object(Bucket=LANDING, Key="incoming/dirty/dirty.csv", Body=DIRTY.read_bytes())
+    validated = validate_input.handler(
+        {"bucket": LANDING, "key": "incoming/dirty/dirty.csv"}, lambda_context
+    )
+    batch_id, batch_date = validated["batch_id"], validated["batch_date"]
+    assert (validated["row_count"], validated["invalid_count"]) == (5, 4)
+    assert validated["warning_count"] == 1
+
+    stored = json.loads(s3.get_object(Bucket=DATA, Key=common.input_key(batch_id))["Body"].read())
+    assert stored["warnings"] == ["ignored_columns: Ticket Type"]
+    assert (stored["encoding"], stored["delimiter"]) == ("utf-8", ",")
+    notes = {r["row_number"]: r["notes"] for r in validated["rows"]}
+    assert notes == {
+        1: ["input.email_invalid"],
+        2: ["input.company_placeholder"],
+        3: ["input.linkedin_url_invalid"],
+        4: [],
+        10: [],
+    }
+    assert validated["rows"][1]["linkedin_url"] == "linkedin.com/in/jane-smith-mock"
+    reasons = {r["row_number"]: r["reason"] for r in stored["invalid"]}
+    assert reasons[5] == "first_name: placeholder value 'test'; last_name: placeholder value 'test'"
+    assert reasons[6] == "first_name: contains digits; last_name: contains digits"
+    assert reasons[7] == "first_name: looks like an email address (columns swapped?)"
+    assert reasons[8].startswith("first_name: placeholder value 'First Name'")
+
+    for row in validated["rows"]:
+        enrich.handler({"batch_id": batch_id, "batch_date": batch_date, "row": row}, lambda_context)
+    manifest = build_curated.handler(
+        {"batch_id": batch_id, "batch_date": batch_date}, lambda_context
+    )
+    assert manifest["status_counts"] == {
+        "ambiguous": 1,
+        "cached": 1,
+        "invalid_input": 4,
+        "matched": 2,
+        "not_found": 1,
+    }
+    quality = manifest["quality"]
+    assert [w.split(":")[0] for w in quality["warnings"]] == [
+        "ignored_columns",
+        "high_invalid_rate",
+    ]
+    assert quality["warning_count"] == 2
+    assert quality["match_rate"] == pytest.approx(0.6)
+    assert quality["flag_counts"] == {
+        "input.company_placeholder": 1,
+        "input.email_invalid": 1,
+        "input.linkedin_url_invalid": 1,
+    }
+
+    lookups = _lookup_rows(s3, batch_date, batch_id)
+    flags = {r["row_number"]: r["quality_flags"] for r in lookups}
+    assert flags[1] == ["input.email_invalid"]
+    assert flags[2] == ["input.company_placeholder"]
+    assert flags[5] == ["input.rejected"]
+    assert flags[10] == []
+    persons = pq.read_table(
+        io.BytesIO(
+            s3.get_object(Bucket=DATA, Key=common.curated_key("dim_person", batch_date, batch_id))[
+                "Body"
+            ].read()
+        )
+    ).to_pylist()
+    assert {p["full_name"]: p["quality_flags"] for p in persons} == {
+        "john doe": ["input.email_invalid"],
+        "jane smith": ["input.company_placeholder"],
+    }

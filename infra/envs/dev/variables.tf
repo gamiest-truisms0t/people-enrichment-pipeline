@@ -44,6 +44,35 @@ variable "max_rows" {
   default     = 500
 }
 
+# Data guards (batch-level thresholds; field rules live in src/enrich_pipeline/guards.py).
+variable "max_input_bytes" {
+  description = "Uploaded CSVs above this size fail validation before being read."
+  type        = number
+  default     = 5000000
+}
+
+variable "max_invalid_fraction" {
+  description = "Share of rejected rows above which the file is treated as the wrong layout and the batch fails (files of 5+ rows)."
+  type        = number
+  default     = 0.5
+
+  validation {
+    condition     = var.max_invalid_fraction > 0 && var.max_invalid_fraction <= 1
+    error_message = "max_invalid_fraction must be in (0, 1]."
+  }
+}
+
+variable "min_match_rate" {
+  description = "Share of valid rows matched (or cached) below which the batch completes with a data-quality warning."
+  type        = number
+  default     = 0.2
+
+  validation {
+    condition     = var.min_match_rate >= 0 && var.min_match_rate <= 1
+    error_message = "min_match_rate must be in [0, 1]."
+  }
+}
+
 variable "max_enrich_credits" {
   description = "Monthly ceiling for enrich credits (billed only on a match). Below the free 100."
   type        = number

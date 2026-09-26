@@ -25,6 +25,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from enrich_pipeline.aws.s3 import get_json, list_keys, put_json, upload_file
 from enrich_pipeline.enricher import EnrichConfig, plan_lookup
+from enrich_pipeline.guards import batch_quality, check_tables
 from enrich_pipeline.handlers.common import (
     Settings,
     curated_key,
@@ -36,7 +37,7 @@ from enrich_pipeline.handlers.common import (
 )
 from enrich_pipeline.models import InputRow, InvalidRow, LookupResult, LookupStatus
 from enrich_pipeline.parquet import write_tables
-from enrich_pipeline.transform import build_tables
+from enrich_pipeline.transform import build_tables, quality_flags
 
 logger = Logger(service="build-curated")
 metrics = Metrics(namespace="PeopleEnrichment", service="build-curated")
@@ -128,6 +129,17 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         results.extend(unrecorded)
 
     tables = build_tables(results, batch_id=batch_id, invalid=invalid, provider=provider, at=now)
+    # Output guards: inconsistent tables fail the step (and the execution) instead of
+    # being published; advisory findings go into the manifest and the notification.
+    check_tables(tables, expected_lookup_rows=len(results) + len(invalid))
+    quality = batch_quality(
+        statuses=[result.status.value for result in results],
+        flags_per_result=[quality_flags(result) for result in results],
+        rows_invalid=len(invalid),
+        parse_warnings=input_doc.get("warnings") or [],
+        unrecorded_rows=len(unrecorded),
+        config=settings.guard_config(),
+    )
 
     workdir = Path(tempfile.mkdtemp(prefix="curated-"))
     files = write_tables(tables, out_dir=workdir, batch_date=batch_date, batch_id=batch_id)
@@ -150,9 +162,15 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         "credits_spent": sum(result.credits_consumed for result in results),
         "persons": len(tables["dim_person"]),
         "employment_rows": len(tables["fact_employment"]),
+        "quality": quality.to_dict(),
         "files": uploaded,
         "built_at": now.isoformat(),
     }
+    if quality.warnings:
+        logger.warning(
+            "batch completed with data-quality warnings",
+            extra={"batch_id": batch_id, "warnings": quality.warnings},
+        )
     manifest["manifest_ref"] = put_json(s3, settings.data_bucket, manifest_key(batch_id), manifest)
 
     metrics.add_metric(name="PersonsCurated", unit=MetricUnit.Count, value=manifest["persons"])

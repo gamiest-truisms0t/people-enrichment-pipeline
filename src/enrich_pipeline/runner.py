@@ -2,7 +2,8 @@
 
 This is the same sequence the Step Functions workflow performs in AWS
 (validate -> enrich each row -> build curated tables), run in-process so the
-whole pipeline can be exercised and inspected without an AWS account.
+whole pipeline, data guards included, can be exercised and inspected without
+an AWS account.
 """
 
 from __future__ import annotations
@@ -13,14 +14,16 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from enrich_pipeline.enricher import CreditBudget, EnrichConfig, Enricher, InMemoryCache
+from enrich_pipeline.guards import GuardConfig, batch_quality, check_tables
 from enrich_pipeline.ingest import parse_csv
 from enrich_pipeline.parquet import write_tables
 from enrich_pipeline.providers.base import Provider
 from enrich_pipeline.raw_store import LocalRawStore
-from enrich_pipeline.transform import build_tables
+from enrich_pipeline.transform import build_tables, quality_flags
 
 
 @dataclass
@@ -36,8 +39,13 @@ class RunSummary:
     credits_spent: int = 0
     persons: int = 0
     employment_rows: int = 0
+    quality: dict[str, Any] = field(default_factory=dict)
     files: dict[str, str] = field(default_factory=dict)
     manifest: str = ""
+
+    @property
+    def warnings(self) -> list[str]:
+        return list(self.quality.get("warnings", []))
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, sort_keys=True)
@@ -53,16 +61,18 @@ def run_batch(
     provider: Provider,
     out_dir: Path,
     config: EnrichConfig | None = None,
+    guards: GuardConfig | None = None,
     batch_id: str | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> RunSummary:
     config = config or EnrichConfig()
+    guards = guards or GuardConfig()
     started = clock()
     batch_date = started.date().isoformat()
     batch_id = batch_id or new_batch_id(started)
     out_dir = Path(out_dir)
 
-    parsed = parse_csv(input_path)
+    parsed = parse_csv(input_path, guards=guards)
 
     raw_store = LocalRawStore(
         out_dir, provider=provider.name, batch_date=batch_date, batch_id=batch_id
@@ -80,6 +90,14 @@ def run_batch(
 
     tables = build_tables(
         results, batch_id=batch_id, invalid=parsed.invalid, provider=provider.name, at=started
+    )
+    check_tables(tables, expected_lookup_rows=parsed.total)
+    quality = batch_quality(
+        statuses=[r.status.value for r in results],
+        flags_per_result=[quality_flags(r) for r in results],
+        rows_invalid=len(parsed.invalid),
+        parse_warnings=parsed.warnings,
+        config=guards,
     )
     files = write_tables(tables, out_dir=out_dir, batch_date=batch_date, batch_id=batch_id)
 
@@ -99,6 +117,7 @@ def run_batch(
         credits_spent=budget.total_spent,
         persons=len(tables["dim_person"]),
         employment_rows=len(tables["fact_employment"]),
+        quality=quality.to_dict(),
         files={name: str(path) for name, path in files.items()},
     )
     manifest_path = out_dir / "manifests" / f"{batch_id}.json"

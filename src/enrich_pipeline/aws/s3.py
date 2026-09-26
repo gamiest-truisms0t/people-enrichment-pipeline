@@ -23,11 +23,6 @@ def get_json(client: Any, bucket: str, key: str) -> Any:
     return json.loads(response["Body"].read().decode("utf-8"))
 
 
-def get_text(client: Any, bucket: str, key: str) -> str:
-    response = client.get_object(Bucket=bucket, Key=key)
-    return response["Body"].read().decode("utf-8-sig")
-
-
 def list_keys(client: Any, bucket: str, prefix: str) -> Iterator[str]:
     paginator = client.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):

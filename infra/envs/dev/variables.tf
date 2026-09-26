@@ -72,6 +72,17 @@ variable "location_hint" {
   default     = ""
 }
 
+variable "budget_alarm_fraction" {
+  description = "Fraction of a monthly credit ceiling at which the budget alarms fire."
+  type        = number
+  default     = 0.9
+
+  validation {
+    condition     = var.budget_alarm_fraction > 0 && var.budget_alarm_fraction <= 1
+    error_message = "budget_alarm_fraction must be in (0, 1]."
+  }
+}
+
 variable "projection_start_date" {
   description = "First batch_date Athena partition projection covers (yyyy-MM-dd)."
   type        = string

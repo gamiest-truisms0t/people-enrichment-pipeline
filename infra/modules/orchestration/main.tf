@@ -186,3 +186,43 @@ resource "aws_cloudwatch_event_target" "state_machine" {
     arn = var.dead_letter_queue_arn
   }
 }
+
+# ------------------------------------------------------------------ alarms
+
+resource "aws_cloudwatch_metric_alarm" "executions_failed" {
+  alarm_name          = "${var.name_prefix}-pipeline-executions-failed"
+  alarm_description   = "A pipeline execution failed (validation or curated step). The execution itself already published details to the alerts topic."
+  namespace           = "AWS/States"
+  metric_name         = "ExecutionsFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alerts_topic_arn]
+  ok_actions          = [var.alerts_topic_arn]
+
+  dimensions = {
+    StateMachineArn = aws_sfn_state_machine.pipeline.arn
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "executions_timed_out" {
+  alarm_name          = "${var.name_prefix}-pipeline-executions-timed-out"
+  alarm_description   = "A pipeline execution hit the state machine's TimeoutSeconds."
+  namespace           = "AWS/States"
+  metric_name         = "ExecutionsTimedOut"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alerts_topic_arn]
+  ok_actions          = [var.alerts_topic_arn]
+
+  dimensions = {
+    StateMachineArn = aws_sfn_state_machine.pipeline.arn
+  }
+}

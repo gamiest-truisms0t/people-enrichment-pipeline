@@ -84,6 +84,39 @@ uploads appears twice with two `batch_id`s (join on both `person_id` and `batch_
 saved queries do); and the dev bucket still contains the mock-provider batches from earlier
 phases alongside the live ones, distinguishable by the `provider` column.
 
+## Operations, security and CI
+
+**Alarms** (eight, inside the always-free ten), all notifying the alerts topic:
+
+| Alarm | Signal |
+|---|---|
+| `<fn>-errors` ×3 | Lambda `Errors` ≥ 1 in 5 minutes, per function |
+| `pipeline-executions-failed` / `-timed-out` | Step Functions `ExecutionsFailed` / `ExecutionsTimedOut` |
+| `enrich-credits-90pct` / `identify-credits-90pct` | month-to-date credit counters published by the enrich function reach 90 % of each ceiling |
+| `dead-letter-queue-not-empty` | any message on the pipeline DLQ |
+
+**Least privilege.** Every function and the state machine have their own role with inline
+policies scoped to the exact bucket prefixes, table, parameter and functions they touch.
+`make iam-check` lists every statement that still uses a wildcard resource and runs IAM
+Access Analyzer's policy validation over each policy. Result on 2026-09-26: **no ERROR or
+SECURITY_WARNING findings**; the only wildcard-resource statements are X-Ray trace
+uploads, `cloudwatch:PutMetricData` (restricted by a namespace condition) and Step
+Functions log-delivery management, none of which support resource-level permissions.
+checkov passes 299 checks with one inline, documented skip.
+
+**Idempotency proof.** `make idempotency-proof` pushes `data/demo/idempotency.csv` through
+the deployed pipeline twice and asserts the second run is served entirely from the cache.
+Result on 2026-09-26: first run 4 matched, 1 not found, 1 invalid, **4 credits**; second
+run 5 `cached`, 1 invalid, **0 credits**, identical persons and positions. Re-uploading a
+registration list therefore costs nothing and still produces a complete batch.
+
+**Repository controls.** `main` is protected: the three CI checks (lint + unit tests,
+Terraform fmt/validate/tflint/checkov, gitleaks secret scan) must pass and the branch must
+be up to date before a merge; force-pushes and deletion are blocked. Dependabot watches
+GitHub Actions, the Python lock file and the Terraform providers weekly. All actions are
+pinned to commit SHAs. Server-side branch protection needs a public repository or GitHub
+Pro, which is why this repository is public.
+
 ## Running a batch on AWS
 
 ```bash

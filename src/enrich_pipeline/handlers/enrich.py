@@ -111,6 +111,19 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
 
     metrics.add_metric(name=METRIC_BY_STATUS[result.status], unit=MetricUnit.Count, value=1)
     metrics.add_metric(name="CreditsSpent", unit=MetricUnit.Count, value=result.credits_consumed)
+    # Month-to-date counters from the shared budget; the credit alarms in
+    # infra/envs/dev/monitoring.tf watch the Maximum of these against
+    # budget_alarm_fraction of each ceiling.
+    metrics.add_metric(
+        name="EnrichCreditsUsedThisMonth",
+        unit=MetricUnit.Count,
+        value=enricher.budget.used("enrich"),
+    )
+    metrics.add_metric(
+        name="IdentifyCreditsUsedThisMonth",
+        unit=MetricUnit.Count,
+        value=enricher.budget.used("identify"),
+    )
     logger.info(
         "enriched row",
         extra={

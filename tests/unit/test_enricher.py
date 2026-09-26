@@ -161,6 +161,17 @@ def test_run_budget_defers_rows_once_spent() -> None:
     assert enricher.budget.used("identify") == 1
 
 
+def test_batch_credit_cap_defers_the_rest_of_the_run() -> None:
+    enricher, provider, _ = make(max_credits_per_batch=1)
+    assert enricher.lookup(row(1, "John", "Doe")).status is LookupStatus.MATCHED
+    deferred = enricher.lookup(row(2, "Jane", "Smith"))
+    assert deferred.status is LookupStatus.BUDGET_DEFERRED
+    assert deferred.error_message == "credit budget: batch cap (1) reached"
+    assert len(provider.calls) == 1  # the capped row never reached the provider
+    # Cached rows still flow: they cost nothing.
+    assert enricher.lookup(row(3, "John", "Doe")).status is LookupStatus.CACHED
+
+
 def test_402_marks_that_call_kind_exhausted_for_the_rest_of_the_run() -> None:
     enricher, provider, _ = make()
     first = enricher.lookup(row(1, "Budget", "Exhausted", company="x"))

@@ -12,6 +12,7 @@ skip-check:
   - CKV_AWS_18    # access logging: needs a log bucket that itself needs logging; not for a dev POC
   - CKV_AWS_144   # cross-region replication: single-region POC
   - CKV_AWS_145   # KMS CMK on S3: SSE-S3 is sufficient here and a CMK costs $1/month
+  - CKV2_AWS_61   # lifecycle configuration: both buckets have one (aws_s3_bucket_lifecycle_configuration.landing/.data); checkov cannot connect them through the for_each bucket map when it scans the storage module on its own
   # DynamoDB
   - CKV_AWS_119   # KMS CMK on DynamoDB: AWS-owned key, same cost reasoning
   - CKV2_AWS_16   # autoscaling on provisioned capacity: fixed 5/5 stays inside the always-free 25/25

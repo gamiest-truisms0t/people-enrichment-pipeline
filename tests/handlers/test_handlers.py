@@ -48,7 +48,8 @@ def test_validate_then_enrich_then_build(
 
     stored = json.loads(s3.get_object(Bucket=DATA, Key=common.input_key(batch_id))["Body"].read())
     assert len(stored["invalid"]) == 1
-    assert stored["source"] == {"bucket": LANDING, "key": SAMPLE_KEY}
+    assert (stored["source"]["bucket"], stored["source"]["key"]) == (LANDING, SAMPLE_KEY)
+    assert stored["source"]["etag"]  # the object identity the batch id is derived from
 
     outcomes = [
         enrich.handler({"batch_id": batch_id, "batch_date": batch_date, "row": row}, lambda_context)
@@ -87,10 +88,12 @@ def test_validate_then_enrich_then_build(
 
     items = aws["table"].scan()["Items"]
     lookups = [i for i in items if i["pk"].startswith("lookup#")]
-    budgets = [i for i in items if i["pk"].startswith("budget#mock#")]
+    budgets = [i for i in items if i["pk"].startswith("budget#mock#") and "#batch#" not in i["pk"]]
+    batch_counters = [i for i in items if i["pk"] == f"budget#mock#batch#{batch_id}"]
     assert len(lookups) == 4  # john, jane, alex, josé; the duplicate alex is a hit
     assert {i["call_kind"] for i in budgets} == {"identify"}
     assert int(budgets[0]["spent"]) == 3
+    assert [int(i["spent"]) for i in batch_counters] == [3]  # the per-batch cap counter
 
     manifest = build_curated.handler({"batch_id": batch_id}, lambda_context)
     assert manifest["batch_date"] == batch_date

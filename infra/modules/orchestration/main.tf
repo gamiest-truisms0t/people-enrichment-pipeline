@@ -168,13 +168,16 @@ resource "aws_cloudwatch_event_target" "state_machine" {
   role_arn = aws_iam_role.events.arn
 
   # The state machine input is always {"bucket": ..., "key": ...}, whether it is
-  # started by this rule or by hand.
+  # started by this rule or by hand; the rule adds the object version so the pipeline
+  # can recognise a duplicate delivery of the same upload.
   input_transformer {
     input_paths = {
-      bucket = "$.detail.bucket.name"
-      key    = "$.detail.object.key"
+      bucket     = "$.detail.bucket.name"
+      key        = "$.detail.object.key"
+      version_id = "$.detail.object.version-id"
+      etag       = "$.detail.object.etag"
     }
-    input_template = "{\"bucket\": <bucket>, \"key\": <key>}"
+    input_template = "{\"bucket\": <bucket>, \"key\": <key>, \"version_id\": <version_id>, \"etag\": <etag>}"
   }
 
   retry_policy {

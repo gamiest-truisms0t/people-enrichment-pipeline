@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -50,11 +51,14 @@ class Settings:
     max_input_bytes: int = GuardConfig.max_input_bytes
     max_invalid_fraction: float = GuardConfig.max_invalid_fraction
     min_match_rate: float = GuardConfig.min_match_rate
+    # Credits one batch may spend in total; None disables the cap.
+    max_credits_per_batch: int | None = None
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         e = env if env is not None else os.environ
         return cls(
+            max_credits_per_batch=_int_or_none(e.get("MAX_CREDITS_PER_BATCH")),
             max_input_bytes=int(e.get("MAX_INPUT_BYTES", cls.max_input_bytes)),
             max_invalid_fraction=float(e.get("MAX_INVALID_FRACTION", cls.max_invalid_fraction)),
             min_match_rate=float(e.get("MIN_MATCH_RATE", cls.min_match_rate)),
@@ -126,6 +130,26 @@ def reset_clients() -> None:
 
 def input_key(batch_id: str) -> str:
     return f"input/batch_id={batch_id}/input.json"
+
+
+def quarantine_file_key(when: datetime, filename: str) -> str:
+    """Where a rejected upload is kept, with the rejection reason as object metadata."""
+    return f"quarantine/files/{when:%Y%m%dT%H%M%S}-{filename}"
+
+
+def rejected_rows_key(batch_id: str) -> str:
+    """CSV of the rows a batch rejected, for the source owner to fix and re-upload."""
+    return f"quarantine/rows/{batch_id}.csv"
+
+
+def batch_id_for_object(bucket: str, key: str, identity: str, when: datetime) -> str:
+    """Deterministic batch id for one object version, so duplicate triggers share it.
+
+    `identity` is the object's version id (or its ETag when the bucket is unversioned);
+    `when` is the object's last-modified time, which keeps the ids sortable by upload.
+    """
+    digest = hashlib.sha256(f"{bucket}/{key}@{identity}".encode()).hexdigest()[:8]
+    return f"{when.astimezone(UTC):%Y%m%dT%H%M%S}-{digest}"
 
 
 def results_prefix(batch_id: str) -> str:

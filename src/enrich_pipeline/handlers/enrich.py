@@ -76,6 +76,8 @@ def build_enricher(settings: Settings, *, batch_date: str, batch_id: str) -> Enr
                 "enrich": settings.max_enrich_credits,
                 "identify": settings.max_identify_credits,
             },
+            batch_id=batch_id,
+            batch_limit=settings.max_credits_per_batch,
         ),
         raw_store=S3RawStore(
             settings.data_bucket,

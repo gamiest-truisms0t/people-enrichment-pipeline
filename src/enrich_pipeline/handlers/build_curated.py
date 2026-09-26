@@ -23,6 +23,7 @@ from aws_lambda_powertools import Logger, Metrics
 from aws_lambda_powertools.metrics import MetricUnit
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from enrich_pipeline import __version__
 from enrich_pipeline.aws.s3 import get_json, list_keys, put_json, upload_file
 from enrich_pipeline.enricher import EnrichConfig, plan_lookup
 from enrich_pipeline.guards import batch_quality, check_tables
@@ -37,7 +38,7 @@ from enrich_pipeline.handlers.common import (
 )
 from enrich_pipeline.models import InputRow, InvalidRow, LookupResult, LookupStatus
 from enrich_pipeline.parquet import write_tables
-from enrich_pipeline.transform import build_tables, quality_flags
+from enrich_pipeline.transform import build_tables, quality_flags, quality_row
 
 logger = Logger(service="build-curated")
 metrics = Metrics(namespace="PeopleEnrichment", service="build-curated")
@@ -97,7 +98,7 @@ def unrecorded_rows(
 
 
 @logger.inject_lambda_context(log_event=False)
-@metrics.log_metrics(capture_cold_start_metric=True)
+@metrics.log_metrics(capture_cold_start_metric=False)
 def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
     settings = Settings.from_env()
     batch_id = event["batch_id"]
@@ -141,6 +142,24 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         config=settings.guard_config(),
     )
 
+    counts = Counter(result.status.value for result in results)
+    if invalid:
+        counts["invalid_input"] += len(invalid)
+    quality_report = quality.to_dict()
+    tables["fact_batch_quality"] = [
+        quality_row(
+            batch_id=batch_id,
+            provider=provider,
+            quality=quality_report,
+            status_counts=dict(counts),
+            rows_unrecorded=len(unrecorded),
+            credits_spent=sum(result.credits_consumed for result in results),
+            persons=len(tables["dim_person"]),
+            employment_rows=len(tables["fact_employment"]),
+            built_at=now,
+        )
+    ]
+
     workdir = Path(tempfile.mkdtemp(prefix="curated-"))
     files = write_tables(tables, out_dir=workdir, batch_date=batch_date, batch_id=batch_id)
     uploaded = {
@@ -148,12 +167,11 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         for table, path in files.items()
     }
 
-    counts = Counter(result.status.value for result in results)
-    counts["invalid_input"] += len(invalid)
     manifest = {
         "batch_id": batch_id,
         "batch_date": batch_date,
         "provider": provider,
+        "pipeline_version": __version__,
         "source": input_doc.get("source"),
         "rows_valid": len(results),
         "rows_invalid": len(invalid),
@@ -163,7 +181,7 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         "credits_spent": sum(result.credits_consumed for result in results),
         "persons": len(tables["dim_person"]),
         "employment_rows": len(tables["fact_employment"]),
-        "quality": quality.to_dict(),
+        "quality": quality_report,
         "files": uploaded,
         "built_at": now.isoformat(),
     }
@@ -175,8 +193,5 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
     manifest["manifest_ref"] = put_json(s3, settings.data_bucket, manifest_key(batch_id), manifest)
 
     metrics.add_metric(name="PersonsCurated", unit=MetricUnit.Count, value=manifest["persons"])
-    metrics.add_metric(
-        name="EmploymentRows", unit=MetricUnit.Count, value=manifest["employment_rows"]
-    )
     logger.info("built curated tables", extra={k: v for k, v in manifest.items() if k != "files"})
     return manifest

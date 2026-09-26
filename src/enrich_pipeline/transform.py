@@ -10,6 +10,7 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
+from enrich_pipeline import __version__
 from enrich_pipeline.models import (
     CompanyRef,
     InvalidRow,
@@ -41,11 +42,12 @@ def _row(table: str, **values: Any) -> Row:
     return {name: values.get(name) for name in columns}
 
 
-def person_row(result: LookupResult, batch_id: str) -> Row:
+def person_row(result: LookupResult, batch_id: str, version: str = __version__) -> Row:
     profile = result.profile
     assert profile is not None  # callers only pass matched results
     return _row(
         "dim_person",
+        pipeline_version=version,
         person_id=profile.id,
         provider=result.provider,
         batch_id=batch_id,
@@ -76,7 +78,7 @@ def quality_flags(result: LookupResult) -> list[str]:
     return list(dict.fromkeys([*result.row.notes, *result.quality_flags]))
 
 
-def employment_rows(profile: PersonProfile, batch_id: str) -> list[Row]:
+def employment_rows(profile: PersonProfile, batch_id: str, version: str = __version__) -> list[Row]:
     rows: list[Row] = []
     for sequence_no, exp in enumerate(profile.ordered_experience()):
         company = exp.company or CompanyRef()
@@ -84,6 +86,7 @@ def employment_rows(profile: PersonProfile, batch_id: str) -> list[Row]:
         rows.append(
             _row(
                 "fact_employment",
+                pipeline_version=version,
                 person_id=profile.id,
                 batch_id=batch_id,
                 sequence_no=sequence_no,
@@ -107,9 +110,10 @@ def employment_rows(profile: PersonProfile, batch_id: str) -> list[Row]:
     return rows
 
 
-def lookup_row(result: LookupResult, batch_id: str) -> Row:
+def lookup_row(result: LookupResult, batch_id: str, version: str = __version__) -> Row:
     return _row(
         "fact_lookup",
+        pipeline_version=version,
         batch_id=batch_id,
         row_number=result.row.row_number,
         input_first_name=result.row.first_name,
@@ -133,9 +137,12 @@ def lookup_row(result: LookupResult, batch_id: str) -> Row:
     )
 
 
-def invalid_row(invalid: InvalidRow, batch_id: str, provider: str, at: datetime) -> Row:
+def invalid_row(
+    invalid: InvalidRow, batch_id: str, provider: str, at: datetime, version: str = __version__
+) -> Row:
     return _row(
         "fact_lookup",
+        pipeline_version=version,
         batch_id=batch_id,
         row_number=invalid.row_number,
         input_first_name=invalid.raw.get("first_name") or None,
@@ -159,8 +166,13 @@ def build_tables(
     invalid: Sequence[InvalidRow] = (),
     provider: str = "",
     at: datetime | None = None,
+    version: str = __version__,
 ) -> Tables:
-    """One person row per distinct match, all of their positions, one lookup row per input."""
+    """One person row per distinct match, all of their positions, one lookup row per input.
+
+    Every row carries `pipeline_version`, the package version that produced it, so a
+    rebuild after a transform change is visible in the data.
+    """
     persons: dict[str, Row] = {}
     employment: list[Row] = []
     lookups: list[Row] = []
@@ -169,19 +181,60 @@ def build_tables(
     # person still belongs in this batch's tables. Only results without a profile
     # (not found, ambiguous, deferred, error) contribute nothing beyond the lookup row.
     for result in results:
-        lookups.append(lookup_row(result, batch_id))
+        lookups.append(lookup_row(result, batch_id, version))
         if result.status in WITH_PROFILE and result.profile is not None:
             if result.profile.id in persons:
                 continue
-            persons[result.profile.id] = person_row(result, batch_id)
-            employment.extend(employment_rows(result.profile, batch_id))
+            persons[result.profile.id] = person_row(result, batch_id, version)
+            employment.extend(employment_rows(result.profile, batch_id, version))
 
     stamp = at or datetime.now(UTC)
-    lookups.extend(invalid_row(inv, batch_id, provider, stamp) for inv in invalid)
+    lookups.extend(invalid_row(inv, batch_id, provider, stamp, version) for inv in invalid)
     lookups.sort(key=lambda r: r["row_number"])
 
     return {
         "dim_person": list(persons.values()),
         "fact_employment": employment,
         "fact_lookup": lookups,
+        "fact_batch_quality": [],  # filled by quality_row once the batch report exists
     }
+
+
+def quality_row(
+    *,
+    batch_id: str,
+    provider: str,
+    quality: dict[str, Any],
+    status_counts: dict[str, int],
+    rows_unrecorded: int,
+    credits_spent: int,
+    persons: int,
+    employment_rows: int,
+    built_at: datetime,
+    version: str = __version__,
+) -> Row:
+    """The batch's quality report as one fact_batch_quality row (see guards.QualityReport)."""
+    return _row(
+        "fact_batch_quality",
+        batch_id=batch_id,
+        provider=provider,
+        pipeline_version=version,
+        rows_valid=quality["rows_valid"],
+        rows_invalid=quality["rows_invalid"],
+        rows_unrecorded=rows_unrecorded,
+        matched=status_counts.get("matched", 0),
+        cached=status_counts.get("cached", 0),
+        not_found=status_counts.get("not_found", 0),
+        ambiguous=status_counts.get("ambiguous", 0),
+        budget_deferred=status_counts.get("budget_deferred", 0),
+        provider_unavailable=status_counts.get("provider_unavailable", 0),
+        error=status_counts.get("error", 0),
+        match_rate=quality["match_rate"],
+        flagged_matches=quality["flagged_matches"],
+        warning_count=quality["warning_count"],
+        warnings=list(quality["warnings"]),
+        credits_spent=credits_spent,
+        persons=persons,
+        employment_rows=employment_rows,
+        built_at=_naive_utc(built_at),
+    )

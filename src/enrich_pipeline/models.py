@@ -25,6 +25,9 @@ class LookupStatus(StrEnum):
     BUDGET_DEFERRED = "budget_deferred"
     INVALID_INPUT = "invalid_input"
     ERROR = "error"
+    # Skipped without a call because the provider circuit breaker was open (a run of
+    # 5xx/transport failures); not cached, so a later run retries the row.
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
 
 
 class LookupMethod(StrEnum):
@@ -66,6 +69,10 @@ class InputRow(BaseModel):
     company: str | None = None
     location: str | None = None
     linkedin_url: str | None = None
+    # Optional consent column: True/False after guards.clean_input_data parses yes/no
+    # spellings; None when absent or unrecognised. ingest.py turns False (and, with
+    # require_consent, None) into an invalid_input row before any provider call.
+    consent: bool | None = None
     notes: list[str] = Field(
         default_factory=list, description="input.* notes: optional fields dropped by a guard"
     )

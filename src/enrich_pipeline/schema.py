@@ -45,6 +45,7 @@ DIM_PERSON: tuple[Column, ...] = (
     Column("match_likelihood", "double", "PDL likelihood 1-10 or Identify match_score 1-99"),
     Column("lookup_method", "string"),
     Column("quality_flags", "string_list", "input.* notes and match.* doubts (data guards)"),
+    Column("pipeline_version", "string", "enrich_pipeline package version that produced the row"),
     Column("enriched_at", "timestamp"),
 )
 
@@ -67,6 +68,7 @@ FACT_EMPLOYMENT: tuple[Column, ...] = (
     Column("end_date", "string"),
     Column("start_year", "int"),
     Column("is_current", "boolean"),
+    Column("pipeline_version", "string", "enrich_pipeline package version that produced the row"),
 )
 
 FACT_LOOKUP: tuple[Column, ...] = (
@@ -89,13 +91,41 @@ FACT_LOOKUP: tuple[Column, ...] = (
     Column("provider", "string"),
     Column("raw_ref", "string"),
     Column("quality_flags", "string_list", "input.* notes and match.* doubts (data guards)"),
+    Column("pipeline_version", "string", "enrich_pipeline package version that produced the row"),
     Column("requested_at", "timestamp"),
+)
+
+# One row per batch build: the quality report the manifest carries, kept as a table so
+# match rate, rejections and warnings can be trended over time in Athena.
+FACT_BATCH_QUALITY: tuple[Column, ...] = (
+    Column("batch_id", "string"),
+    Column("provider", "string"),
+    Column("pipeline_version", "string"),
+    Column("rows_valid", "int"),
+    Column("rows_invalid", "int"),
+    Column("rows_unrecorded", "int", "rows whose enrich invocation left no result"),
+    Column("matched", "int"),
+    Column("cached", "int"),
+    Column("not_found", "int"),
+    Column("ambiguous", "int"),
+    Column("budget_deferred", "int"),
+    Column("provider_unavailable", "int"),
+    Column("error", "int"),
+    Column("match_rate", "double", "(matched + cached) / rows_valid"),
+    Column("flagged_matches", "int", "matched rows carrying match.* quality flags"),
+    Column("warning_count", "int"),
+    Column("warnings", "string_list"),
+    Column("credits_spent", "int"),
+    Column("persons", "int"),
+    Column("employment_rows", "int"),
+    Column("built_at", "timestamp"),
 )
 
 TABLES: dict[str, tuple[Column, ...]] = {
     "dim_person": DIM_PERSON,
     "fact_employment": FACT_EMPLOYMENT,
     "fact_lookup": FACT_LOOKUP,
+    "fact_batch_quality": FACT_BATCH_QUALITY,
 }
 
 GLUE_TYPES: dict[ColumnKind, str] = {

@@ -23,6 +23,7 @@ from typing import Any, Protocol
 
 from pydantic import ValidationError
 
+from enrich_pipeline.breaker import Breaker, MemoryBreaker, unavailable_message
 from enrich_pipeline.budget_rules import batch_cap_reason, monthly_ceiling_reason
 from enrich_pipeline.guards import match_flags
 from enrich_pipeline.models import (
@@ -60,6 +61,9 @@ class EnrichConfig:
     # Credits one batch may spend in total, so a single oversized upload cannot burn the
     # month's pool. None = only the monthly ceilings apply.
     max_credits_per_batch: int | None = None
+    # Circuit breaker: consecutive 5xx/transport failures that open it, and for how long.
+    breaker_threshold: int = 3
+    breaker_cooldown_seconds: int = 300
 
 
 class Budget(Protocol):
@@ -218,6 +222,7 @@ class Enricher:
         cache: LookupCache | None = None,
         budget: Budget | None = None,
         raw_store: RawStore | None = None,
+        breaker: Breaker | None = None,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], datetime] = _utcnow,
     ) -> None:
@@ -228,6 +233,11 @@ class Enricher:
         self.raw_store = raw_store or NullRawStore()
         self.sleep = sleep
         self.clock = clock
+        self.breaker = breaker or MemoryBreaker(
+            threshold=self.config.breaker_threshold,
+            cooldown_seconds=self.config.breaker_cooldown_seconds,
+            clock=clock,
+        )
 
     def provider_exhausted(self, kind: ResponseKind) -> bool:
         return self.budget.is_exhausted(kind)
@@ -277,16 +287,28 @@ class Enricher:
                 error_message=blocked,
                 attempts=0,
             )
+        if (until := self.breaker.open_until()) is not None:
+            return LookupResult(
+                **base,
+                status=LookupStatus.PROVIDER_UNAVAILABLE,
+                error_message=unavailable_message(until),
+                attempts=0,
+            )
 
         try:
             response, attempts = self._call(plan.kind, plan.params)
         except ProviderError as exc:
+            self.breaker.record_failure()
             return LookupResult(
                 **base,
                 status=LookupStatus.ERROR,
                 error_message=f"transport error: {exc}",
                 attempts=self.config.max_attempts,
             )
+        if response.status >= 500:
+            self.breaker.record_failure()
+        else:
+            self.breaker.record_success()
 
         result = self._interpret(base, plan, response, attempts)
         self.budget.record(plan.kind, result.credits_consumed)

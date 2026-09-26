@@ -15,7 +15,7 @@ from aws_lambda_powertools import Logger, Metrics
 from aws_lambda_powertools.metrics import MetricUnit
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from enrich_pipeline.aws.dynamo import DynamoBudget, DynamoCache
+from enrich_pipeline.aws.dynamo import DynamoBreaker, DynamoBudget, DynamoCache
 from enrich_pipeline.aws.s3 import put_json
 from enrich_pipeline.enricher import Enricher
 from enrich_pipeline.handlers.common import (
@@ -86,11 +86,17 @@ def build_enricher(settings: Settings, *, batch_date: str, batch_id: str) -> Enr
             batch_id=batch_id,
             client=s3_client(),
         ),
+        breaker=DynamoBreaker(
+            table,
+            provider=provider.name,
+            threshold=settings.breaker_threshold,
+            cooldown_seconds=settings.breaker_cooldown_seconds,
+        ),
     )
 
 
 @logger.inject_lambda_context(log_event=False)
-@metrics.log_metrics(capture_cold_start_metric=True)
+@metrics.log_metrics(capture_cold_start_metric=False)  # a custom metric per function otherwise
 def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
     settings = Settings.from_env()
     batch_id = event["batch_id"]
@@ -107,7 +113,8 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         result.model_dump(mode="json"),
     )
 
-    metrics.add_metric(name=METRIC_BY_STATUS[result.status], unit=MetricUnit.Count, value=1)
+    if (status_metric := METRIC_BY_STATUS.get(result.status)) is not None:
+        metrics.add_metric(name=status_metric, unit=MetricUnit.Count, value=1)
     metrics.add_metric(name="CreditsSpent", unit=MetricUnit.Count, value=result.credits_consumed)
     # Month-to-date counters from the shared budget; the credit alarms in
     # infra/envs/dev/monitoring.tf watch the Maximum of these against

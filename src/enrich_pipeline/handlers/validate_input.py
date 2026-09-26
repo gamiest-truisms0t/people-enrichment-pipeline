@@ -148,7 +148,7 @@ def _process(
     }
     input_ref = put_json(s3, settings.data_bucket, input_key(batch_id), document)
 
-    metrics.add_metric(name="RowsValid", unit=MetricUnit.Count, value=len(parsed.rows))
+    # RowsValid is derivable (fact_batch_quality); only the rejection count is a metric.
     metrics.add_metric(name="RowsInvalid", unit=MetricUnit.Count, value=len(parsed.invalid))
     logger.info(
         "validated input",
@@ -181,7 +181,7 @@ def _process(
 
 
 @logger.inject_lambda_context(log_event=False)
-@metrics.log_metrics(capture_cold_start_metric=True)
+@metrics.log_metrics(capture_cold_start_metric=False)
 def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
     settings = Settings.from_env()
     bucket = event["bucket"]

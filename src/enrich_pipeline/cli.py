@@ -127,7 +127,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=GuardConfig.min_match_rate,
         help="warn when fewer than this share of valid rows matched",
     )
+    run.add_argument(
+        "--require-consent",
+        action="store_true",
+        help="reject rows whose consent column is missing or not a clear yes",
+    )
     run.add_argument("--json", action="store_true", help="print the run summary as JSON")
+
+    validate = sub.add_parser(
+        "validate",
+        help="dry-run the input guards on a CSV: what would be accepted, salvaged, rejected",
+    )
+    validate.add_argument("--input", required=True, type=Path)
+    validate.add_argument(
+        "--max-invalid-fraction", type=float, default=GuardConfig.max_invalid_fraction
+    )
+    validate.add_argument("--require-consent", action="store_true")
+    validate.add_argument("--json", action="store_true", help="print the report as JSON")
 
     query = sub.add_parser("query", help="answer the brief's questions against local Parquet")
     query.add_argument("--out", default=Path("out"), type=Path)
@@ -161,7 +177,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         location_hint=args.location_hint,
     )
     guards = GuardConfig(
-        max_invalid_fraction=args.max_invalid_fraction, min_match_rate=args.min_match_rate
+        max_invalid_fraction=args.max_invalid_fraction,
+        min_match_rate=args.min_match_rate,
+        require_consent=args.require_consent,
     )
     try:
         summary = run_batch(
@@ -192,6 +210,61 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_validate(args: argparse.Namespace) -> int:
+    """Run only the ingestion guards and report, without enriching or writing anything.
+
+    This is the data contract in executable form: a registration-system owner can check a
+    file before uploading it. Exit code 0 when the file would be processed (possibly with
+    rejected rows), 2 when it would be rejected as a whole.
+    """
+    import json
+
+    from enrich_pipeline.ingest import DEFAULT_MAX_ROWS, parse_csv
+
+    guards = GuardConfig(
+        max_invalid_fraction=args.max_invalid_fraction, require_consent=args.require_consent
+    )
+    try:
+        parsed = parse_csv(args.input, max_rows=DEFAULT_MAX_ROWS, guards=guards)
+    except InputError as exc:
+        if args.json:
+            print(json.dumps({"accepted": False, "reason": str(exc)}, indent=2))
+        else:
+            print(f"REJECTED: {exc}", file=sys.stderr)
+        return 2
+
+    report = {
+        "accepted": True,
+        "encoding": parsed.encoding,
+        "delimiter": parsed.delimiter,
+        "columns": parsed.columns,
+        "ignored_columns": parsed.ignored_columns,
+        "rows_valid": len(parsed.rows),
+        "rows_invalid": len(parsed.invalid),
+        "rows_with_notes": sum(1 for r in parsed.rows if r.notes),
+        "warnings": parsed.warnings,
+        "rejected": [{"row_number": i.row_number, "reason": i.reason} for i in parsed.invalid],
+        "notes": [{"row_number": r.row_number, "notes": r.notes} for r in parsed.rows if r.notes],
+    }
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+    print(f"ACCEPTED: {args.input} would be processed")
+    print(f"  encoding {parsed.encoding}, delimiter {parsed.delimiter!r}")
+    print(f"  columns used: {', '.join(parsed.columns)}")
+    if parsed.ignored_columns:
+        print(f"  columns ignored: {', '.join(parsed.ignored_columns)}")
+    print(f"  rows: {len(parsed.rows)} valid, {len(parsed.invalid)} rejected")
+    for item in parsed.invalid:
+        print(f"    row {item.row_number}: {item.reason}")
+    for row in parsed.rows:
+        if row.notes:
+            print(f"    row {row.row_number}: {', '.join(row.notes)} (field dropped, row kept)")
+    for warning in parsed.warnings:
+        print(f"  warning: {warning}")
+    return 0
+
+
 def cmd_query(args: argparse.Namespace) -> int:
     try:
         import duckdb
@@ -215,6 +288,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_run(args)
     if args.command == "query":
         return cmd_query(args)
+    if args.command == "validate":
+        return cmd_validate(args)
     parser.print_help()
     return 0
 

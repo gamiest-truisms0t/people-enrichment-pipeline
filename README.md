@@ -8,9 +8,9 @@ which roles they have held. Everything is provisioned with Terraform, nothing is
 from the internet, and the whole thing runs inside AWS Free-plan credits and the
 provider's free monthly credits.
 
-**Status:** `v1.0.0`. Built and verified on a personal AWS Free-plan account on
+**Status:** `v1.2.3`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
-nothing on 2026-09-26 to prove reproducibility. [PLAN.md](PLAN.md) is the build plan with
+nothing twice on 2026-09-26 to prove reproducibility. [PLAN.md](PLAN.md) is the build plan with
 its phase log; `docs/adr/` holds the decision records; [docs/architecture.md](docs/architecture.md)
 has the component and IAM detail.
 
@@ -75,7 +75,7 @@ costing anything on the free plan.
 | VPCs assumed present; focus on configuration and security of the other services | outbound HTTPS only, so no VPC is needed; `lambda_vpc_config` attaches the functions to existing subnets when required; one least-privilege role per principal ([Assumptions](#assumptions), [Security](#security)) |
 | Ingestion is our choice | a CSV copied to the landing bucket, with header aliases and a published input contract ([Quick start](#quick-start), [Data guards](#data-guards)) |
 | No public access to the application | no API or function URL, public access blocked at bucket and account level, an IAM-only trigger ([Security](#security)) |
-| Version control with best practices | protected `main`, pull requests with a review before each, conventional commits, tags, pinned actions, secret scanning ([Development](#development)) |
+| Version control with best practices | protected `main`, pull requests with a review before each, conventional commits, tags, pinned actions, secret scanning, tests with a coverage floor in CI ([Development](#development)) |
 | README on architecture, assumptions, failures and API limits | the three sections of those names |
 
 **Added on our own initiative**
@@ -100,9 +100,11 @@ costing anything on the free plan.
   deploys from GitHub Actions through OIDC roles with a plan comment on every pull request,
   apply on merge gated by a zero-credit run, and daily drift detection; Dependabot;
   pre-commit hooks that mirror CI ([Development](#development), [ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
-- **Testing.** 149 tests across pure logic, provider contracts on recorded fixtures and
-  handlers on mocked AWS; end-to-end runs that count the batch in Athena; the idempotency
-  proof; the IAM check; two destroy-and-rebuild proofs ([Development](#development)).
+- **Testing.** 149 tests (97 % line coverage, 90 % floor in CI) across pure logic,
+  provider contracts on recorded fixtures and handlers on mocked AWS; a smoke test of the
+  deployed functions; end-to-end runs that count the batch in Athena and gate every CI
+  deploy; the idempotency proof; the IAM check; state-machine validation on every pull
+  request; two destroy-and-rebuild proofs ([Development](#development)).
 - **Analytics extras.** Partition projection instead of crawlers, six saved queries, the
   `person_current` view, and a local DuckDB path that answers the same questions without an
   AWS account ([Data model](#data-model-and-the-three-questions)).
@@ -120,7 +122,8 @@ a People Data Labs free-plan API key for live runs (`make run` works without one
 
 ```bash
 make setup                              # uv sync + git hooks
-make check                              # ruff + 134 tests (unit, provider contract, mocked-AWS handlers)
+make check                              # ruff + 149 tests (unit, provider contract, mocked-AWS handlers)
+make coverage                           # the same tests with line coverage (97 %; CI enforces a 90 % floor)
 make run                                # data/sample/names.csv through the offline mock provider -> ./out
 make run INPUT=data/sample/dirty.csv    # the data guards at work: salvaged fields, rejected rows, warnings
 make validate INPUT=registrants.csv     # dry-run the input contract on a file before uploading it
@@ -479,7 +482,7 @@ src/enrich_pipeline/
   schema.py transform.py parquet.py              the three tables, one source of truth
   raw_store.py runner.py cli.py                  raw layer, local runner, `enrich run|query`
   aws/{s3,dynamo}.py handlers/                   AWS clients, the three Lambda handlers
-tests/unit tests/handlers tests/fixtures        134 tests; moto for AWS, respx for HTTP; synthetic fixtures only
+tests/unit tests/handlers tests/fixtures        149 tests, 97 % line coverage; moto for AWS, respx for HTTP; synthetic fixtures only
 infra/bootstrap infra/envs/dev infra/modules/    state bucket + account block; the dev stack; storage, secrets,
                                                  lambda_function, orchestration, catalog modules
 data/sample data/demo                            mock-provider samples (clean and dirty); public-figure demo lists
@@ -487,10 +490,29 @@ docs/adr docs/architecture.md docs/athena_queries.sql
 scripts/                                         e2e, smoke, idempotency proof, IAM check, Athena verify, fixtures
 ```
 
-- **Tests.** `make check` runs ruff and pytest: pure-logic unit tests, provider contract
-  tests against recorded sandbox and live fixtures (no real PII), and handler tests
-  against moto-mocked S3 and DynamoDB. `make e2e`, `make idempotency-proof`,
-  `make iam-check`, `make athena-verify` and `make rebuild-all` exercise the deployed stack.
+- **Tests, by layer.** All of it runs on the free plan and on GitHub's free minutes.
+  - *Unit* (`tests/unit`): normalisation and lookup keys, the matching ladder, budgets and
+    the circuit breaker, the data guards, the transform and Parquet schema, the CLI. Pure
+    Python, no AWS, no network.
+  - *Provider contract* (`tests/unit/test_pdl_provider.py`, `test_provider_response.py`):
+    the People Data Labs adapter against responses recorded from the sandbox and from live
+    calls (`tests/fixtures/pdl`, synthetic data only): status mapping, credit and
+    rate-limit headers, obscured fields.
+  - *Handler* (`tests/handlers`): the three Lambda handlers chained the way Step Functions
+    runs them, against moto-mocked S3 and DynamoDB: the cache, the budgets, the batch
+    claim, quarantine, the breaker, the quality table.
+  - *Smoke* (`make smoke`): invokes the three deployed functions directly, in order, on the
+    cached demo file, so a broken function is isolated from a broken trigger.
+  - *End to end* (`make e2e`): uploads the file, follows the execution EventBridge starts,
+    and counts the batch's rows in Athena; the CI deploy runs it as its gate after every
+    apply, at zero credits.
+  - *Proofs and checks* (`make idempotency-proof`, `make iam-check`, `make athena-verify`,
+    `make rebuild-all`, `make asl-validate`): the re-upload costs nothing, no IAM policy
+    has a wildcard resource it does not need, the saved queries and the view answer, every
+    batch rebuilds from stored results, the state machine definition is valid.
+
+  `make check` runs the first three layers (149 tests, about ten seconds); `make coverage`
+  adds line coverage, 97 % at `v1.2.3`, and CI fails below 90 %.
 - **CI** (GitHub Actions, pinned to commit SHAs): lint + tests, `terraform fmt`/`validate`,
   tflint, checkov, and a gitleaks scan. `main` is protected: all three checks must pass and
   the branch must be current; no force pushes. Dependabot watches actions, `uv.lock` and
@@ -508,8 +530,9 @@ scripts/                                         e2e, smoke, idempotency proof, 
   code review; commits follow Conventional Commits; milestones are tagged (`v0.0.1` local
   pipeline, `v0.1.0` end to end with the mock, `v0.2.0` live provider, `v0.3.0` Athena,
   `v0.4.0` hardening, `v1.0.0` submission, `v1.1.0` production practices, `v1.2.0` the $0
-  pass). Changes after `v1.0.0` continue on `main` and are tagged `v1.x`; the package
-  version is stamped on every curated row as `pipeline_version`.
+  pass, `v1.2.x` documentation and test polish). Changes after `v1.0.0` continue on `main`
+  and are tagged `v1.x`; the package version is stamped on every curated row as
+  `pipeline_version`.
 - **Reproducibility.** On 2026-09-26 the dev stack was destroyed and re-created from
   `make apply`; a follow-up plan shows no drift, and the pipeline ran end to end on the
   fresh stack.
@@ -532,9 +555,9 @@ scripts/                                         e2e, smoke, idempotency proof, 
   means small files at thousands of batches. Distributed Map with an S3 item reader and
   Iceberg tables (or periodic compaction) are the paths there.
 - **Next steps** in rough order: the Diffbot fallback for name-only rows; PDL Company
-  Enrichment into a `dim_company` table; OIDC-based deploys from GitHub Actions with
-  `plan` on PR and `apply` on `main`; dbt-athena models for analyst marts; LocalStack for
-  offline integration tests.
+  Enrichment into a `dim_company` table; an erasure command for a person's rows, raw
+  objects and cache entry; dbt-athena models for analyst marts; LocalStack for offline
+  integration tests.
 
 ## Appendix: provider findings and live runs
 

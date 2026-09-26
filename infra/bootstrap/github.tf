@@ -100,6 +100,13 @@ data "aws_iam_policy_document" "github_plan" {
     resources = ["*"]
   }
 
+  # `make asl-validate` in the plan workflow: a stateless check of the ASL template.
+  statement {
+    sid       = "ValidateStateMachineDefinitions"
+    actions   = ["states:ValidateStateMachineDefinition"]
+    resources = ["*"]
+  }
+
   statement {
     sid       = "DescribeSsmKey"
     actions   = ["kms:DescribeKey"]

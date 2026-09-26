@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Manually drive the deployed pipeline the way Step Functions will in Phase 3:
+# Smoke test for the deployed functions: invoke them directly, in the order the state
+# machine does, and print each step's result. Bypasses EventBridge and Step Functions on
+# purpose, so a broken function is isolated from a broken trigger; `make e2e` covers the
+# whole path.
 #   upload CSV -> validate-input -> enrich (per row) -> build-curated
 # Usage: scripts/smoke.sh [path/to/names.csv]   (AWS_PROFILE/AWS_REGION from the Makefile)
 set -euo pipefail

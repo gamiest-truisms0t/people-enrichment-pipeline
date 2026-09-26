@@ -14,7 +14,7 @@ export AWS_PAGER   :=
 UV  ?= uv
 ENV ?= dev
 
-.PHONY: help setup lint fmt test check precommit run query login whoami clean \
+.PHONY: help setup lint fmt test coverage check precommit run query login whoami clean \
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
         e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify \
         idempotency-proof iam-check branch-protection quarantine quarantine-get redrive ci-config \
@@ -36,8 +36,12 @@ fmt: ## Auto-format and fix lint
 	$(UV) run ruff format src tests
 	$(UV) run ruff check --fix src tests
 
-test: ## Unit tests (no AWS, no network)
+test: ## Unit, provider-contract and handler tests (no AWS account, no network)
 	$(UV) run pytest -m "not integration"
+
+coverage: ## The same tests with line coverage (floor 90 %, as in CI); HTML report in htmlcov/
+	$(UV) run pytest -m "not integration" --cov=enrich_pipeline --cov-report=term-missing \
+	  --cov-report=html --cov-fail-under=90
 
 check: lint test ## Lint + test
 
@@ -48,6 +52,10 @@ INPUT    ?= data/sample/names.csv
 OUT      ?= out
 PROVIDER ?= mock
 SANDBOX  ?= 0
+# The AWS targets (upload, smoke, e2e) default to the cached public-figure demo file, which
+# costs no credits, instead of the mock sample whose name-only rows would spend identify
+# credits against the live provider. INPUT=... still overrides.
+AWS_INPUT = $(if $(filter data/sample/names.csv,$(INPUT)),data/demo/idempotency.csv,$(INPUT))
 
 run: ## Run the pipeline locally (PROVIDER=mock|pdl, SANDBOX=1 for PDL's free sandbox, INPUT=..., OUT=...)
 	$(UV) run enrich run --input $(INPUT) --provider $(PROVIDER) $(if $(filter 1,$(SANDBOX)),--sandbox,) --out $(OUT)
@@ -180,14 +188,14 @@ set-api-key: ## Push ~/.config/people-enrichment/pdl_api_key into the SSM Secure
 	  --type SecureString --overwrite \
 	  --value "$$(cat $(HOME)/.config/people-enrichment/pdl_api_key)" >/dev/null && echo "api key stored in SSM"
 
-upload: ## Copy INPUT to the landing bucket under incoming/<timestamp>/
-	aws s3 cp $(INPUT) "s3://$$($(TF_ENV) output -raw landing_bucket)/incoming/$$(date -u +%Y%m%dT%H%M%SZ)/$$(basename $(INPUT))"
+upload: ## Copy INPUT (default: the cached demo file) to the landing bucket under incoming/<timestamp>/
+	aws s3 cp $(AWS_INPUT) "s3://$$($(TF_ENV) output -raw landing_bucket)/incoming/$$(date -u +%Y%m%dT%H%M%SZ)/$$(basename $(AWS_INPUT))"
 
-smoke: ## Drive validate -> enrich -> build-curated by hand in AWS on INPUT
-	scripts/smoke.sh $(INPUT)
+smoke: ## Smoke test: invoke validate -> enrich -> build-curated directly in AWS on INPUT (default: the cached demo file)
+	scripts/smoke.sh $(AWS_INPUT)
 
-e2e: ## Upload INPUT and follow the Step Functions execution the upload triggers
-	scripts/e2e.sh $(INPUT)
+e2e: ## End-to-end test: upload INPUT (default: the cached demo file), follow the execution, count the batch in Athena
+	scripts/e2e.sh $(AWS_INPUT)
 
 executions: ## List the five most recent pipeline executions
 	aws stepfunctions list-executions --state-machine-arn "$$($(TF_ENV) output -raw state_machine_arn)" \

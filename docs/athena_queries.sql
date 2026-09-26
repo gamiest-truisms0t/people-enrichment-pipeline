@@ -1,29 +1,37 @@
--- Athena queries answering the brief's three questions.
--- Database and tables are created by Terraform (infra/modules/catalog) in Phase 5.
--- Replace the batch_date literal with the partition you want to inspect.
+-- Athena queries answering the brief's three questions, plus an operational view.
+-- Terraform (infra/modules/catalog) creates the Glue database people_enrichment_<env>
+-- with partition projection over batch_date, and saves these four queries in the
+-- workgroup people-enrichment-<env>-analytics. Run them with `make athena-verify` or in
+-- the Athena console with that workgroup selected. Restrict batch_date to keep scans
+-- small; every table is one Parquet file per batch.
 
 -- 1. Who are the individuals identified?
-SELECT full_name,
+SELECT batch_date,
+       full_name,
        current_job_title,
        current_company_name,
        location_country,
        linkedin_url,
-       match_likelihood
-FROM people_enrichment.dim_person
-WHERE batch_date = '2026-10-01'
-ORDER BY full_name;
+       match_likelihood,
+       lookup_method
+FROM people_enrichment_dev.dim_person
+WHERE batch_date >= CAST(current_date - interval '30' day AS varchar)
+ORDER BY batch_date DESC, full_name;
 
 -- 2. What companies have they worked at?
-SELECT p.full_name,
+SELECT p.batch_date,
+       p.full_name,
        e.company_name,
        e.company_industry,
        e.start_date,
        e.end_date,
        e.is_current
-FROM people_enrichment.fact_employment e
-JOIN people_enrichment.dim_person p
-  ON p.person_id = e.person_id AND p.batch_date = e.batch_date
-WHERE e.batch_date = '2026-10-01'
+FROM people_enrichment_dev.fact_employment e
+JOIN people_enrichment_dev.dim_person p
+  ON p.person_id = e.person_id
+ AND p.batch_id = e.batch_id
+ AND p.batch_date = e.batch_date
+WHERE p.batch_date = '2026-09-25'
 ORDER BY p.full_name, e.sequence_no;
 
 -- 3. What roles have they held?
@@ -31,19 +39,34 @@ SELECT p.full_name,
        e.title_name,
        e.title_role,
        e.title_levels,
-       e.company_name
-FROM people_enrichment.fact_employment e
-JOIN people_enrichment.dim_person p
-  ON p.person_id = e.person_id AND p.batch_date = e.batch_date
-WHERE e.batch_date = '2026-10-01'
+       e.company_name,
+       e.start_date,
+       e.end_date
+FROM people_enrichment_dev.fact_employment e
+JOIN people_enrichment_dev.dim_person p
+  ON p.person_id = e.person_id
+ AND p.batch_id = e.batch_id
+ AND p.batch_date = e.batch_date
+WHERE p.batch_date = '2026-09-25'
 ORDER BY p.full_name, e.sequence_no;
 
--- Operational: match rate and credit use per batch.
-SELECT batch_id,
+-- 4. Operational: outcome per input row and credits per batch.
+SELECT batch_date,
+       batch_id,
        status,
-       count(*)              AS rows,
-       sum(credits_consumed) AS credits
-FROM people_enrichment.fact_lookup
-WHERE batch_date = '2026-10-01'
-GROUP BY 1, 2
-ORDER BY 1, 2;
+       lookup_method,
+       count(*)                  AS rows,
+       sum(credits_consumed)     AS credits,
+       round(avg(likelihood), 1) AS avg_likelihood
+FROM people_enrichment_dev.fact_lookup
+WHERE batch_date = '2026-09-25'
+GROUP BY 1, 2, 3, 4
+ORDER BY batch_id, status, lookup_method;
+
+-- Bonus: which companies appear most across the identified people?
+SELECT e.company_name, count(DISTINCT e.person_id) AS people
+FROM people_enrichment_dev.fact_employment e
+WHERE e.batch_date = '2026-09-25'
+GROUP BY 1
+ORDER BY 2 DESC, 1
+LIMIT 20;

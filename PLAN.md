@@ -499,7 +499,12 @@ with a commit/tag and a working state you could submit if you ran out of time.
    fallback on 402/budget exhaustion. Cheap to add behind the adapter and a strong answer
    to "how does it handle API limits".
 
-### Phase 5 — Analytics layer (1–2 h)
+### Phase 5 — Analytics layer (1–2 h) — ✅ done 2026-09-26
+
+> Deviations: Glue column definitions are generated from `schema.py` into
+> `columns.json` (a unit test fails on drift) so transform, Parquet and catalog share one
+> source of truth; the four queries are saved as Athena named queries in the workgroup
+> and verified from the CLI (`make athena-verify`) rather than by console screenshots.
 
 1. `modules/catalog`: Glue database, three tables with explicit columns and partition
    projection over `batch_date`; Athena workgroup (encrypted results, scan cutoff).

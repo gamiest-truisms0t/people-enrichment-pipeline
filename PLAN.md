@@ -594,7 +594,16 @@ toggle from D11 was not exposed (`lambda_vpc_config`); the $5 AWS Budget (5.3) w
 console-created only (now `aws_budgets_budget`); the `owner` tag (7) was missing; and
 `make e2e` did not assert the Athena row count (10).
 
-### Phase 7 — README, ADRs, demo, teardown (2 h)
+### Phase 7 — README, ADRs, demo, teardown (2 h) — ✅ done 2026-09-26, `v1.0.0`
+
+> Deviations: the destroy → apply proof was run on the dev stack with the data bucket and
+> the state table backed up and restored around it (248 objects, 52 items), so the live demo
+> batches and the credit cache survived; 63 resources destroyed, 64 created (the extra one is
+> the new saved query 5, "latest snapshot per person", added so cross-batch questions do not
+> repeat people), identical outputs, no drift afterwards. The stack is **left running**
+> because changes may still follow before the deadline (it costs about $1.50 a month in
+> custom metrics, covered by credits); `make destroy` is the teardown. Rebuilding needs two
+> manual steps the README lists: confirm the SNS subscription email and `make set-api-key`.
 
 1. README per section 11; Mermaid architecture diagram; assumptions list; failure table (5.3).
 2. Account-level S3 Block Public Access: `aws_s3_account_public_access_block` with all four

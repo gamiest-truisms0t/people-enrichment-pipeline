@@ -111,10 +111,11 @@ resource "aws_athena_workgroup" "this" {
 # The brief's three questions, saved in the workgroup so they show up in the console.
 resource "aws_athena_named_query" "question" {
   for_each = {
-    "1-who-are-the-individuals" = "who.sql.tftpl"
-    "2-which-companies"         = "companies.sql.tftpl"
-    "3-which-roles"             = "roles.sql.tftpl"
-    "4-outcome-per-input-row"   = "outcomes.sql.tftpl"
+    "1-who-are-the-individuals"    = "who.sql.tftpl"
+    "2-which-companies"            = "companies.sql.tftpl"
+    "3-which-roles"                = "roles.sql.tftpl"
+    "4-outcome-per-input-row"      = "outcomes.sql.tftpl"
+    "5-latest-snapshot-per-person" = "latest.sql.tftpl"
   }
 
   name        = each.key

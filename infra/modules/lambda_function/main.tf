@@ -19,6 +19,20 @@ resource "aws_cloudwatch_log_group" "this" {
   retention_in_days = var.log_retention_days
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+locals {
+  ec2_arn_prefix = "arn:aws:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}"
+  # Network interfaces Lambda may create for an optional VPC attachment: any ENI in the
+  # account, but only in the configured subnets and security groups.
+  vpc_network_arns = var.vpc_config == null ? [] : concat(
+    ["${local.ec2_arn_prefix}:network-interface/*"],
+    [for id in var.vpc_config.subnet_ids : "${local.ec2_arn_prefix}:subnet/${id}"],
+    [for id in var.vpc_config.security_group_ids : "${local.ec2_arn_prefix}:security-group/${id}"],
+  )
+}
+
 data "aws_iam_policy_document" "assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -70,6 +84,33 @@ data "aws_iam_policy_document" "base" {
       resources = [statement.value]
     }
   }
+
+  # Only with a VPC attachment: the ENI lifecycle Lambda manages on the function's behalf.
+  dynamic "statement" {
+    for_each = var.vpc_config == null ? [] : [1]
+
+    content {
+      sid = "VpcNetworkInterfaces"
+      actions = [
+        "ec2:CreateNetworkInterface",
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses",
+      ]
+      resources = local.vpc_network_arns
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.vpc_config == null ? [] : [1]
+
+    content {
+      # Describe calls do not support resource-level permissions.
+      sid       = "VpcDescribe"
+      actions   = ["ec2:DescribeNetworkInterfaces", "ec2:DescribeSubnets", "ec2:DescribeSecurityGroups"]
+      resources = ["*"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "base" {
@@ -115,6 +156,15 @@ resource "aws_lambda_function" "this" {
 
     content {
       target_arn = dead_letter_config.value
+    }
+  }
+
+  dynamic "vpc_config" {
+    for_each = var.vpc_config == null ? [] : [var.vpc_config]
+
+    content {
+      subnet_ids         = vpc_config.value.subnet_ids
+      security_group_ids = vpc_config.value.security_group_ids
     }
   }
 

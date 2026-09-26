@@ -66,6 +66,21 @@ class Settings:
             metrics_namespace=e.get("POWERTOOLS_METRICS_NAMESPACE", "PeopleEnrichment"),
         )
 
+    def enrich_config(self, **overrides: Any) -> EnrichConfig:
+        """The matching-ladder tuning from this deployment's settings.
+
+        Both the enrich function (which adds retry and budget settings) and the curated
+        step (which reproduces lookup keys for unrecorded rows) build their config here,
+        so the two can never disagree on what a row's key is.
+        """
+        return EnrichConfig(
+            identify_min_score=self.identify_min_score,
+            identify_min_margin=self.identify_min_margin,
+            enrich_min_likelihood=self.enrich_min_likelihood,
+            location_hint=self.location_hint,
+            **overrides,
+        )
+
 
 def utcnow() -> datetime:
     return datetime.now(UTC)

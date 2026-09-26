@@ -170,7 +170,7 @@ Implications:
 ```
  you (IAM creds)                       AWS account (dev)
  ───────────────                       ────────────────────────────────────────────────────────────────
- make upload FILE=names.csv
+ make upload INPUT=names.csv
         │  aws s3 cp
         ▼
  ┌─────────────────────┐   ObjectCreated    ┌──────────────┐   StartExecution   ┌──────────────────────────────┐
@@ -467,7 +467,7 @@ with a commit/tag and a working state you could submit if you ran out of time.
    with CloudWatch logging and X-Ray.
 2. S3 EventBridge notifications on the landing bucket; rule on `Object Created` with
    prefix `incoming/`; target = state machine; SNS topic + email subscription for failures.
-3. `make upload FILE=data/sample/names.csv` → watch execution → curated Parquet appears.
+3. `make upload INPUT=data/sample/names.csv` → watch execution → curated Parquet appears.
    *Done when:* end-to-end with the mock provider from a CSV upload. Tag `v0.1.0`.
 
 ### Phase 4 — Real provider (2–3 h) — ✅ done 2026-09-25, `v0.2.0`
@@ -528,6 +528,34 @@ with a commit/tag and a working state you could submit if you ran out of time.
 3. CI: add `terraform fmt -check`, `validate`, tflint, checkov; branch protection requires CI.
 4. Idempotency proof: re-upload the same CSV → all rows `cached`, 0 credits.
    *Done when:* CI enforces everything and the re-upload test passes.
+
+### Design-section audit before Phase 7 — 2026-09-26
+
+Sections 3 to 7, 9 and 10 were checked line by line against the code and the deployed
+stack. Everything is built, with these deviations kept on purpose (the README documents
+them in Phase 7):
+
+- **429 / 5xx handling (5.3)** lives inside the enrich function (waits until
+  `x-ratelimit-reset`, backoff on 5xx, 3 attempts, 20 s cap) instead of a Step Functions
+  `Retry` on 429; the state machine retries only Lambda service errors. Same outcome, one
+  fewer state transition per retry. The enrich timeout is 90 s, not 30 s, to fit those waits.
+- **`x-totallimit-remaining` (5.3)** is parsed and shown in `make report` but does not
+  adjust the DynamoDB counter: the counter is the guard's source of truth (section 13) and
+  the provider's figure includes spend from outside this pipeline.
+- **`location_hint` (5.1 step 5)** turns a name-only row into a name + location enrich
+  call (billed only on a match) rather than decorating an identify call, so it also moves
+  the row out of the scarce identify pool.
+- **Layout (7)**: `storage.py` is split into `aws/s3.py`, `aws/dynamo.py` and
+  `raw_store.py`; `docs/architecture.md` and ADRs 0002–0003 are Phase 7 deliverables.
+- **Powertools Tracer (D8)** is not used; X-Ray active tracing is on at the function level.
+- Optional items not built: Diffbot fallback (4b), `dim_education`, hypothesis tests.
+
+Gaps found and closed in the same pass: a row whose enrich invocation crashed after the
+Map's retries had no `fact_lookup` row (the curated step now records it as `error`, with
+the Catch's Error/Cause, and the partial-failure email lists the row numbers); the VPC
+toggle from D11 was not exposed (`lambda_vpc_config`); the $5 AWS Budget (5.3) was
+console-created only (now `aws_budgets_budget`); the `owner` tag (7) was missing; and
+`make e2e` did not assert the Athena row count (10).
 
 ### Phase 7 — README, ADRs, demo, teardown (2 h)
 

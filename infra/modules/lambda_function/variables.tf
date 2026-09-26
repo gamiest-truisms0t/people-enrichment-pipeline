@@ -88,3 +88,17 @@ variable "metrics_namespace" {
   type        = string
   default     = "PeopleEnrichment"
 }
+
+variable "vpc_config" {
+  description = <<-EOT
+    Attach the function to existing private subnets (PLAN.md D11). null, the default, keeps
+    the function outside any VPC: it only makes outbound HTTPS calls, and inside a VPC those
+    would need a NAT gateway (not free) or interface endpoints. When set, the role also gets
+    the network-interface permissions Lambda needs, scoped to the given subnets and groups.
+  EOT
+  type = object({
+    subnet_ids         = list(string)
+    security_group_ids = list(string)
+  })
+  default = null
+}

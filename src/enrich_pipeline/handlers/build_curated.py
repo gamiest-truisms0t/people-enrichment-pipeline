@@ -1,15 +1,21 @@
 """Lambda 3/3: turn a batch's lookup results into the curated Parquet tables.
 
-Input  : {"batch_id", "batch_date"?}
-Reads  : input/batch_id=<id>/input.json (invalid rows) and results/batch_id=<id>/*.json
+Input  : {"batch_id", "batch_date"?, "row_errors"?: [{"row_number", "error", "cause"}]}
+Reads  : input/batch_id=<id>/input.json (all parsed rows) and results/batch_id=<id>/*.json
 Writes : curated/<table>/batch_date=<date>/<batch_id>.parquet and manifests/<batch_id>.json
 Needs the pyarrow layer; nothing else in the pipeline does.
+
+Every valid input row ends up in fact_lookup. A row whose enrich invocation crashed or
+timed out after Step Functions' retries has no result object; the Map's Catch turns it
+into a `row_errors` entry, and this step records it as an `error` row so the audit table
+is complete and the batch can be rebuilt without provider calls.
 """
 
 from __future__ import annotations
 
 import tempfile
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +24,7 @@ from aws_lambda_powertools.metrics import MetricUnit
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from enrich_pipeline.aws.s3 import get_json, list_keys, put_json, upload_file
+from enrich_pipeline.enricher import EnrichConfig, plan_lookup
 from enrich_pipeline.handlers.common import (
     Settings,
     curated_key,
@@ -27,12 +34,65 @@ from enrich_pipeline.handlers.common import (
     s3_client,
     utcnow,
 )
-from enrich_pipeline.models import InvalidRow, LookupResult
+from enrich_pipeline.models import InputRow, InvalidRow, LookupResult, LookupStatus
 from enrich_pipeline.parquet import write_tables
 from enrich_pipeline.transform import build_tables
 
 logger = Logger(service="build-curated")
 metrics = Metrics(namespace="PeopleEnrichment", service="build-curated")
+
+UNRECORDED_MESSAGE = "no result recorded: the enrich invocation failed after retries"
+MAX_ERROR_MESSAGE = 1000
+
+
+def unrecorded_rows(
+    input_doc: dict[str, Any],
+    results: list[LookupResult],
+    row_errors: list[dict[str, Any]],
+    *,
+    provider: str,
+    config: EnrichConfig,
+    at: datetime,
+) -> list[LookupResult]:
+    """`error` results for valid input rows that have no result object.
+
+    `row_errors` carries the Step Functions Catch output for crashed rows (Error/Cause);
+    a row missing for any other reason gets a generic message. The lookup key and method
+    are the ones the enrich function would have used, so the row lines up with a later
+    successful run of the same input.
+    """
+    recorded = {result.row.row_number for result in results}
+    causes: dict[int, dict[str, Any]] = {}
+    for item in row_errors:
+        try:
+            causes[int(item["row_number"])] = item
+        except (KeyError, TypeError, ValueError):
+            logger.warning("row_errors entry without a row_number", extra={"entry": item})
+
+    synthesized: list[LookupResult] = []
+    for item in input_doc.get("rows", []):
+        if item.get("row_number") in recorded:
+            continue
+        row = InputRow.model_validate(item)
+        cause = causes.get(row.row_number)
+        message = UNRECORDED_MESSAGE
+        if cause:
+            message = f"{cause.get('error') or 'error'}: {cause.get('cause') or ''}".strip(": ")
+        plan = plan_lookup(row, config)
+        synthesized.append(
+            LookupResult(
+                row=row,
+                lookup_key=plan.key,
+                status=LookupStatus.ERROR,
+                provider=provider,
+                method=plan.method,
+                error_message=message[:MAX_ERROR_MESSAGE],
+                credits_consumed=0,
+                attempts=0,
+                requested_at=at,
+            )
+        )
+    return synthesized
 
 
 @logger.inject_lambda_context(log_event=False)
@@ -52,6 +112,20 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         LookupResult.model_validate(get_json(s3, settings.data_bucket, key))
         for key in sorted(list_keys(s3, settings.data_bucket, results_prefix(batch_id)))
     ]
+    unrecorded = unrecorded_rows(
+        input_doc,
+        results,
+        event.get("row_errors") or [],
+        provider=provider,
+        config=settings.enrich_config(),
+        at=now,
+    )
+    if unrecorded:
+        logger.warning(
+            "rows without a result recorded as errors",
+            extra={"batch_id": batch_id, "row_numbers": [r.row.row_number for r in unrecorded]},
+        )
+        results.extend(unrecorded)
 
     tables = build_tables(results, batch_id=batch_id, invalid=invalid, provider=provider, at=now)
 
@@ -71,6 +145,7 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         "source": input_doc.get("source"),
         "rows_valid": len(results),
         "rows_invalid": len(invalid),
+        "rows_unrecorded": len(unrecorded),
         "status_counts": dict(sorted(counts.items())),
         "credits_spent": sum(result.credits_consumed for result in results),
         "persons": len(tables["dim_person"]),

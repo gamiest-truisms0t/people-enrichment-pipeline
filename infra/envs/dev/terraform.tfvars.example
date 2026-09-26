@@ -7,3 +7,6 @@ alert_email = "you@example.com"
 # max_enrich_credits   = 70
 # max_identify_credits = 20
 # location_hint        = ""
+# owner                = "your-team-or-handle"   # tag on every resource
+# monthly_budget_usd   = 5
+# lambda_vpc_config    = { subnet_ids = ["subnet-..."], security_group_ids = ["sg-..."] }  # PLAN.md D11; needs NAT or endpoints

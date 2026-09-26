@@ -56,6 +56,9 @@ if [ "$status" = "SUCCEEDED" ]; then
   echo "==> output"
   output="$(aws stepfunctions describe-execution --execution-arn "$execution" --query output --output text)"
   jq . <<<"$output"
+  if [ -n "${E2E_OUTPUT_JSON:-}" ]; then
+    printf '%s\n' "$output" > "$E2E_OUTPUT_JSON"
+  fi
   batch_id="$(jq -r .batch_id <<<"$output")"
   echo "==> curated objects for batch $batch_id"
   aws s3 ls "s3://$DATA/curated/" --recursive | grep "$batch_id" | awk '{print "    " $3 " bytes  " $4}'

@@ -13,7 +13,8 @@ ENV ?= dev
 
 .PHONY: help setup lint fmt test check precommit run query login whoami clean \
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
-        e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify
+        e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify \
+        idempotency-proof iam-check branch-protection
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -57,6 +58,18 @@ ROWS ?= 12
 
 athena-verify: ## Run the saved Athena queries in the pipeline workgroup and print the first ROWS rows
 	scripts/athena_verify.sh $(ROWS)
+
+IDEMPOTENCY_INPUT ?= data/demo/idempotency.csv
+
+idempotency-proof: ## Run IDEMPOTENCY_INPUT twice through AWS; the second run must be all cached at zero credits
+	scripts/idempotency_proof.sh $(IDEMPOTENCY_INPUT)
+
+iam-check: ## List wildcard-resource statements and run IAM Access Analyzer over every project role
+	scripts/iam_check.sh people-enrichment-$(ENV)
+
+branch-protection: ## Require the CI checks on main (.github/branch-protection.json) via the GitHub API
+	gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input .github/branch-protection.json \
+	  --jq '"required checks: " + (.required_status_checks.contexts | join(", "))'
 
 query: ## Answer the brief's three questions against local Parquet with DuckDB
 	$(UV) run enrich query --out $(OUT)

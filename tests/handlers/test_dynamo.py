@@ -7,6 +7,21 @@ from enrich_pipeline.aws.dynamo import DynamoBudget, DynamoCache
 from enrich_pipeline.models import InputRow, LookupResult, LookupStatus
 
 
+class _CountingTable:
+    """Pass-through to the moto table that counts reads."""
+
+    def __init__(self, table: Any) -> None:
+        self.table = table
+        self.reads = 0
+
+    def get_item(self, **kwargs: Any) -> Any:
+        self.reads += 1
+        return self.table.get_item(**kwargs)
+
+    def __getattr__(self, name: str) -> Any:  # update_item, put_item, ...
+        return getattr(self.table, name)
+
+
 def _result() -> LookupResult:
     return LookupResult(
         row=InputRow(row_number=1, first_name="John", last_name="Doe"),
@@ -43,7 +58,24 @@ def test_budget_counts_and_limits(aws: dict[str, Any]) -> None:
     assert not budget.allows("enrich")
     assert budget.allows("identify")
     assert budget.spent("enrich") == 2
+    assert budget.used("enrich") == 2
+    assert budget.used("identify") == 0
     assert budget.total_spent == 2
+
+    # used() answers from the counter the last update returned; no extra read.
+    counting = _CountingTable(aws["table"])
+    budget.table = counting
+    budget.record("enrich", 1)
+    assert budget.used("enrich") == 3
+    assert counting.reads == 0
+    assert budget.used("identify") == 0  # already seen above: still no read
+    assert counting.reads == 0
+
+    # Another instance (another invocation) sees the shared total.
+    other = DynamoBudget(
+        aws["table"], provider="mock", month="2026-10", limits={"enrich": 2, "identify": None}
+    )
+    assert other.used("enrich") == 3
 
     assert not budget.is_exhausted("enrich")
     budget.mark_exhausted("enrich")

@@ -20,7 +20,20 @@ def _keys(s3: Any, prefix: str) -> list[str]:
     return sorted(list_keys(s3, DATA, prefix))
 
 
-def test_validate_then_enrich_then_build(aws: dict[str, Any], lambda_context: FakeContext) -> None:
+def _emf_records(stdout: str) -> list[dict[str, Any]]:
+    """Powertools flushes one CloudWatch EMF JSON document per invocation to stdout."""
+    records = []
+    for line in stdout.splitlines():
+        if line.startswith("{"):
+            record = json.loads(line)
+            if "_aws" in record:
+                records.append(record)
+    return records
+
+
+def test_validate_then_enrich_then_build(
+    aws: dict[str, Any], lambda_context: FakeContext, capsys: pytest.CaptureFixture[str]
+) -> None:
     s3 = aws["s3"]
 
     validated = validate_input.handler({"bucket": LANDING, "key": SAMPLE_KEY}, lambda_context)
@@ -46,6 +59,22 @@ def test_validate_then_enrich_then_build(aws: dict[str, Any], lambda_context: Fa
     ]
     assert sum(o["credits_consumed"] for o in outcomes) == 3
     assert all(o["result_ref"].startswith(f"s3://{DATA}/results/") for o in outcomes)
+
+    # The month-to-date gauges the credit alarms in monitoring.tf watch, under the
+    # service=enrich dimension, climb 1, 2, 3 on the billed rows and hold on the rest.
+    gauges = [
+        r for r in _emf_records(capsys.readouterr().out) if "IdentifyCreditsUsedThisMonth" in r
+    ]
+    # EMF stores each metric's values as a list, one entry per add_metric call.
+    assert [r["IdentifyCreditsUsedThisMonth"] for r in gauges] == [[1], [2], [3], [3], [3]]
+    assert [r["EnrichCreditsUsedThisMonth"] for r in gauges] == [[0]] * 5
+    assert all(r["service"] == "enrich" for r in gauges)
+    metric_names = {m["Name"] for m in gauges[-1]["_aws"]["CloudWatchMetrics"][0]["Metrics"]}
+    assert {
+        "EnrichCreditsUsedThisMonth",
+        "IdentifyCreditsUsedThisMonth",
+        "CreditsSpent",
+    } <= metric_names
     assert outcomes[0]["raw_ref"].startswith(f"s3://{DATA}/raw/provider=mock/")
     assert outcomes[4]["raw_ref"] == outcomes[2]["raw_ref"]  # cached row points at the original
 

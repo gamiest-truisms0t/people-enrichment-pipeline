@@ -152,10 +152,13 @@ def test_cache_hit_costs_nothing_and_keeps_the_new_row() -> None:
 def test_run_budget_defers_rows_once_spent() -> None:
     enricher, _, _ = make(max_identify_credits=1)
     assert enricher.lookup(row(1, "John", "Doe")).status is LookupStatus.MATCHED
+    assert enricher.budget.used("identify") == 1
+    assert enricher.budget.used("enrich") == 0
     deferred = enricher.lookup(row(2, "Alex", "Lee"))
     assert deferred.status is LookupStatus.BUDGET_DEFERRED
     assert deferred.credits_consumed == 0
     assert deferred.error_message is not None and "budget" in deferred.error_message
+    assert enricher.budget.used("identify") == 1
 
 
 def test_402_marks_that_call_kind_exhausted_for_the_rest_of_the_run() -> None:

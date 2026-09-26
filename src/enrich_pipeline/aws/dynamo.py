@@ -74,13 +74,22 @@ class DynamoBudget:
         self.provider = provider
         self.month = month
         self.limits = dict(limits)
+        # Last total this instance observed per kind, from a read or from the counter
+        # returned by an update; lets used() skip a second consistent read.
+        self._seen: dict[str, int] = {}
 
     def pk(self, kind: str) -> str:
         return f"budget#{self.provider}#{self.month}#{kind}"
 
     def spent(self, kind: str) -> int:
+        """Current month-to-date total (one strongly consistent read)."""
         item = self.table.get_item(Key={"pk": self.pk(kind)}, ConsistentRead=True).get("Item")
-        return int(item.get("spent", 0)) if item else 0
+        self._seen[kind] = int(item.get("spent", 0)) if item else 0
+        return self._seen[kind]
+
+    def used(self, kind: str) -> int:
+        """Month-to-date total as last observed by this instance; reads only if never seen."""
+        return self._seen[kind] if kind in self._seen else self.spent(kind)
 
     def allows(self, kind: str) -> bool:
         limit = self.limits.get(kind)
@@ -89,7 +98,7 @@ class DynamoBudget:
     def record(self, kind: str, credits: int) -> None:
         if credits <= 0:
             return
-        self.table.update_item(
+        response = self.table.update_item(
             Key={"pk": self.pk(kind)},
             UpdateExpression=(
                 "ADD spent :c SET provider = :p, #m = :mo, call_kind = :k, updated_at = :t, "
@@ -104,7 +113,9 @@ class DynamoBudget:
                 ":t": _now_iso(),
                 ":ttl": int(time.time()) + 400 * DAY,
             },
+            ReturnValues="UPDATED_NEW",
         )
+        self._seen[kind] = int(response["Attributes"]["spent"])
 
     def mark_exhausted(self, kind: str) -> None:
         self.table.put_item(

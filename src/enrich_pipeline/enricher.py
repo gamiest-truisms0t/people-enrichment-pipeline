@@ -64,6 +64,8 @@ class Budget(Protocol):
 
     def record(self, kind: str, credits: int) -> None: ...
 
+    def used(self, kind: str) -> int: ...
+
     def mark_exhausted(self, kind: str) -> None: ...
 
     def is_exhausted(self, kind: str) -> bool: ...
@@ -90,6 +92,9 @@ class CreditBudget:
 
     def record(self, kind: str, credits: int) -> None:
         self.spent[kind] += credits
+
+    def used(self, kind: str) -> int:
+        return self.spent[kind]
 
     def mark_exhausted(self, kind: str) -> None:
         self._exhausted.add(kind)

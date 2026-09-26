@@ -122,6 +122,7 @@ module "fn_validate_input" {
   log_retention_days     = var.log_retention_days
   dead_letter_target_arn = aws_sqs_queue.lambda_dlq.arn
   alarm_actions          = [aws_sns_topic.alerts.arn]
+  vpc_config             = var.lambda_vpc_config
 }
 
 module "fn_enrich" {
@@ -139,6 +140,7 @@ module "fn_enrich" {
   log_retention_days     = var.log_retention_days
   dead_letter_target_arn = aws_sqs_queue.lambda_dlq.arn
   alarm_actions          = [aws_sns_topic.alerts.arn]
+  vpc_config             = var.lambda_vpc_config
 }
 
 module "fn_build_curated" {
@@ -157,4 +159,5 @@ module "fn_build_curated" {
   log_retention_days     = var.log_retention_days
   dead_letter_target_arn = aws_sqs_queue.lambda_dlq.arn
   alarm_actions          = [aws_sns_topic.alerts.arn]
+  vpc_config             = var.lambda_vpc_config
 }

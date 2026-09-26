@@ -50,6 +50,32 @@ resource "aws_cloudwatch_metric_alarm" "identify_credit_budget" {
   }
 }
 
+# Account spend guard (PLAN.md 5.3). Budgets with notifications only are free. The Free
+# plan cannot be charged, so this catches credit burn before the plan ends early.
+resource "aws_budgets_budget" "monthly_spend" {
+  name         = "${local.name_prefix}-monthly-spend"
+  budget_type  = "COST"
+  limit_amount = tostring(var.monthly_budget_usd)
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 20
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.alert_email]
+  }
+}
+
 # Anything on the dead-letter queue means an asynchronous invocation or an EventBridge
 # delivery failed after retries and needs a human.
 resource "aws_cloudwatch_metric_alarm" "dead_letter_queue" {

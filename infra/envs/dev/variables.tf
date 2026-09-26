@@ -10,6 +10,12 @@ variable "environment" {
   default     = "dev"
 }
 
+variable "owner" {
+  description = "Owner tag on every resource (a team or handle). Empty = tag omitted."
+  type        = string
+  default     = ""
+}
+
 variable "region" {
   type    = string
   default = "ap-southeast-1"
@@ -119,8 +125,27 @@ variable "pandas_layer_arn" {
 }
 
 variable "alert_email" {
-  description = "Email address subscribed to the alerts topic. Confirm the subscription email once after apply."
+  description = "Email address subscribed to the alerts topic and to the AWS Budget. Confirm the subscription email once after apply."
   type        = string
+}
+
+variable "monthly_budget_usd" {
+  description = "AWS Budgets monthly cost limit for the account; alerts at 20 % actual and 100 % forecast."
+  type        = number
+  default     = 5
+}
+
+variable "lambda_vpc_config" {
+  description = <<-EOT
+    Optional VPC attachment for the three functions (PLAN.md D11): existing private subnet
+    ids and security group ids. Leave null unless the subnets have a NAT gateway or
+    interface endpoints for the provider API, S3, DynamoDB, SSM, CloudWatch and X-Ray.
+  EOT
+  type = object({
+    subnet_ids         = list(string)
+    security_group_ids = list(string)
+  })
+  default = null
 }
 
 variable "max_concurrency" {

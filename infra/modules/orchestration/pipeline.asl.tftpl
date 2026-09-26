@@ -11,7 +11,9 @@
         "FunctionName": "${validate_input_arn}",
         "Payload": {
           "bucket.$": "$.bucket",
-          "key.$": "$.key"
+          "key.$": "$.key",
+          "execution_id.$": "$$.Execution.Id",
+          "trigger.$": "$"
         }
       },
       "ResultSelector": {
@@ -20,6 +22,9 @@
         "row_count.$": "$.Payload.row_count",
         "invalid_count.$": "$.Payload.invalid_count",
         "input_ref.$": "$.Payload.input_ref",
+        "rejected_rows_ref.$": "$.Payload.rejected_rows_ref",
+        "duplicate.$": "$.Payload.duplicate",
+        "owner_execution.$": "$.Payload.owner_execution",
         "rows.$": "$.Payload.rows"
       },
       "ResultPath": "$.batch",
@@ -44,7 +49,24 @@
           "Next": "NotifyFailure"
         }
       ],
-      "Next": "EnrichRows"
+      "Next": "IsDuplicateTrigger"
+    },
+    "IsDuplicateTrigger": {
+      "Type": "Choice",
+      "Comment": "S3 and EventBridge deliver at least once; the first execution to claim the object version owns the batch.",
+      "Choices": [
+        {
+          "Variable": "$.batch.duplicate",
+          "BooleanEquals": true,
+          "Next": "DuplicateIgnored"
+        }
+      ],
+      "Default": "EnrichRows"
+    },
+    "DuplicateIgnored": {
+      "Type": "Succeed",
+      "Comment": "Nothing to do: another execution already processed (or is processing) this upload.",
+      "OutputPath": "$.batch"
     },
     "EnrichRows": {
       "Type": "Map",
@@ -134,6 +156,7 @@
         "status_counts.$": "$.Payload.status_counts",
         "quality_warnings.$": "$.Payload.quality.warning_count",
         "quality_notes.$": "$.Payload.quality.notes",
+        "rejected_rows_ref.$": "$.Payload.rejected_rows_ref",
         "manifest_ref.$": "$.Payload.manifest_ref"
       },
       "ResultPath": "$.curated",
@@ -201,7 +224,7 @@
       "Parameters": {
         "TopicArn": "${alerts_topic_arn}",
         "Subject": "People-enrichment: batch completed with warnings",
-        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows (input row numbers {}) and {} data-quality warning(s): {}. Persons curated: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.failed_rows, $.summary.curated.quality_warnings, $.summary.curated.quality_notes, $.summary.curated.persons, $.summary.curated.manifest_ref, $$.Execution.Id)"
+        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows (input row numbers {}) and {} data-quality warning(s): {}. Persons curated: {}. Rejected rows file: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.failed_rows, $.summary.curated.quality_warnings, $.summary.curated.quality_notes, $.summary.curated.persons, $.summary.curated.rejected_rows_ref, $.summary.curated.manifest_ref, $$.Execution.Id)"
       },
       "ResultPath": null,
       "Next": "Succeeded"

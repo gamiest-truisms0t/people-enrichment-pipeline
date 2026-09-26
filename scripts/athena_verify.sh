@@ -42,3 +42,23 @@ aws athena batch-get-named-query --named-query-ids $query_ids --output json \
     | jq -r '.ResultSet.Rows[] | [.Data[] | (.VarCharValue // "")] | join(" | ")' \
     | sed 's/^/    /'
 done
+
+# The person_current view must resolve and hold exactly one row per person.
+echo
+echo "==> view person_current (one row per person across batches)"
+execution="$(aws athena start-query-execution --work-group "$WORKGROUP" \
+  --query-execution-context "Database=$DATABASE" \
+  --query-string "SELECT count(*) AS rows, count(DISTINCT person_id) AS persons FROM $DATABASE.person_current" \
+  --query 'QueryExecutionId' --output text)"
+while :; do
+  state="$(aws athena get-query-execution --query-execution-id "$execution" --query 'QueryExecution.Status.State' --output text)"
+  case "$state" in
+    SUCCEEDED) break ;;
+    FAILED|CANCELLED)
+      aws athena get-query-execution --query-execution-id "$execution" --query 'QueryExecution.Status.StateChangeReason' --output text >&2
+      exit 1 ;;
+    *) sleep 2 ;;
+  esac
+done
+aws athena get-query-results --query-execution-id "$execution" --output json \
+  | jq -r '.ResultSet.Rows[1].Data | "    rows=\(.[0].VarCharValue) persons=\(.[1].VarCharValue)"'

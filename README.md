@@ -98,9 +98,9 @@ receives failures, batches completed with warnings, and alarm notifications.
 | EventBridge rule | `Object Created` under `incoming/` → `StartExecution`; undeliverable events go to a dead-letter queue |
 | Step Functions Standard | `ValidateInput` → `EnrichRows` (inline Map, `MaxConcurrency` 1) → `BuildCurated` → summarise; failures and warnings to SNS |
 | 3 Lambda functions (Python 3.13, arm64) | `validate-input` (guards, parsing), `enrich` (matching ladder, cache, budget, provider call), `build-curated` (reconciliation, output guards, Parquet) |
-| DynamoDB state table | idempotency cache `lookup#…` (TTL 90 days) and monthly credit counters `budget#…`; provisioned 5/5 |
+| DynamoDB state table | idempotency cache `lookup#…` (TTL 90 days), monthly and per-batch credit counters `budget#…`, batch claims `batch#…` (one execution per upload); provisioned 5/5 |
 | SSM SecureString | the provider API key; Terraform creates a placeholder and ignores the value |
-| S3 data bucket | `input/`, `raw/` (90-day TTL), `results/`, `curated/<table>/batch_date=…/<batch_id>.parquet`, `manifests/`, `athena-results/` (7-day TTL) |
+| S3 data bucket | `input/`, `raw/` (90-day TTL), `results/`, `curated/<table>/batch_date=…/<batch_id>.parquet`, `manifests/`, `quarantine/` (rejected uploads and rejected-row exports, 90-day TTL), `athena-results/` (7-day TTL) |
 | Glue database + Athena workgroup | three tables generated from `schema.py` with partition projection; encrypted results, 100 MB scan cutoff, five saved queries |
 | SNS topic, CloudWatch, AWS Budget | email alerts; eight alarms; $5 monthly budget |
 
@@ -159,7 +159,9 @@ ORDER BY p.full_name, e.sequence_no;
 
 Query 4 is the operational view (status, method, credits per batch) and query 5 the
 **latest snapshot per person**, because `dim_person` is a per-batch snapshot: a person
-uploaded twice appears once per batch. `make athena-verify` runs all five; on 2026-09-26,
+uploaded twice appears once per batch. The same logic is also a Glue view,
+**`person_current`**, created by Terraform, so `SELECT * FROM person_current` answers
+"who are the individuals" across every upload with one row per person. `make athena-verify` runs all five; on 2026-09-26,
 on the rebuilt stack, they each scanned 9 to 34 KB in under 1.4 s. The largest live batch answers question 1
 with 17 public-company executives, and questions 2 and 3 with their dated positions and
 titles (for example Nasdaq, executive vice president of corporate strategy, VP level).
@@ -208,7 +210,9 @@ titles (for example Nasdaq, executive vice president of corporate strategy, VP l
 | Transient 5xx or network errors | Exponential backoff inside the function; the Map retries Lambda service errors (2 s, ×2, jitter, 3 attempts). Every call is idempotent through the cache key, so a retry never double-spends. |
 | Credit exhaustion | Per-pool monthly counters in DynamoDB (`enrich` 70, `identify` 2, below the plan's 100 and 5) are checked before every billable call; rows past a ceiling are `budget_deferred` and the batch still completes. An HTTP 402 marks that pool exhausted for the month so the remaining rows skip the call. Alarms fire at 90 % of each ceiling. |
 | Duplicate names, re-uploaded files | Normalised lookup key (NFKC, casefold, punctuation and whitespace folded, plus the identifiers and thresholds used) → DynamoDB cache with a 90-day TTL; a hit costs nothing and reuses the stored profile. Proof on 2026-09-26: first upload 4 matched, 1 not found, 1 invalid, **4 credits**; second upload of the same file 5 `cached`, 1 invalid, **0 credits**, identical persons and positions. |
-| Bad files and rows | See [Data guards](#data-guards): a file that cannot be processed fails the batch with the reason; bad rows are recorded as `invalid_input`; bad optional fields are dropped with a note. |
+| Duplicate trigger events | S3 notifications and EventBridge deliver at least once. The batch id is derived from the object version and the first execution to claim it in DynamoDB (conditional write) owns it; a second delivery ends in `DuplicateIgnored` with no rows enriched. Verified by starting a second execution with an identical input. |
+| One upload spending the month | `max_credits_per_batch` (default 40) is enforced through a per-batch counter beside the monthly ones; rows past the cap are `budget_deferred` with `credit budget: batch cap (40) reached`. |
+| Bad files and rows | See [Data guards](#data-guards): a file that cannot be processed fails the batch with the reason **and is kept under `quarantine/files/` with that reason as object metadata**; rows a batch rejects are exported to `quarantine/rows/<batch_id>.csv` for the source owner. `make quarantine` lists both, `make quarantine-get` downloads, `make redrive` re-submits a quarantined file (a new object, so never a duplicate). |
 | Provider payload changes | pydantic models with `extra="ignore"`, obscured `true`/`false` values coerced to null, contract tests against recorded sandbox and live fixtures; raw JSON is kept so the curated tables can be rebuilt. |
 | Partial batch failure | A row whose invocation crashes or times out after retries becomes an `error` record; `BuildCurated` still runs and records that row in `fact_lookup` with the Step Functions Error and Cause, so every input row is accounted for. The execution succeeds and the "completed with warnings" email lists the row numbers. |
 | Poison inputs, repeated failure | Execution-level Catch publishes to SNS and fails the execution with the original error; alarms on Lambda `Errors`, `ExecutionsFailed`, `ExecutionsTimedOut` and a non-empty dead-letter queue. |
@@ -262,8 +266,12 @@ on 2026-09-26:
   (namespace-conditioned) and Step Functions log delivery, none of which support
   resource-level permissions.
 - The provider key lives only in the SSM SecureString (AWS-managed key) and on the
-  operator's machine; never in git, Terraform state or environment variables. gitleaks
-  runs as a pre-commit hook and in CI.
+  operator's machine; never in git, Terraform state or environment variables. The state
+  claim needed a fix: the AWS provider reads a SecureString back **decrypted into state**
+  even with `ignore_changes`, so the parameter now uses the write-only `value_wo`
+  argument (state holds an empty value, verified) and the older state versions that
+  contained the key were deleted from the versioned state bucket. gitleaks runs as a
+  pre-commit hook and in CI.
 - DynamoDB, SQS and Athena results are encrypted with AWS-owned or managed keys. Customer
   managed KMS keys were deliberately not used ($1 per key per month); the SNS topic is
   unencrypted because CloudWatch alarms cannot publish to a topic encrypted with the
@@ -313,6 +321,13 @@ scripts/                                         e2e, smoke, idempotency proof, 
   tflint, checkov, and a gitleaks scan. `main` is protected: all three checks must pass and
   the branch must be current; no force pushes. Dependabot watches actions, `uv.lock` and
   Terraform providers weekly.
+- **Deploys from CI, no stored keys** ([ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
+  Three OIDC roles from the bootstrap stack: a pull request gets a `terraform plan`
+  comment rendered without refreshing (the role can only read the state); a merge to
+  `main` plans, applies the saved plan and then runs the zero-credit demo batch as the
+  deploy gate; a daily drift job refreshes with a read-only role and fails when the
+  account differs from `main`. `make ci-config` publishes the variables and the
+  alert-email secret the workflows need.
 - **Pre-commit** mirrors CI: ruff, gitleaks, terraform fmt/validate/tflint/checkov,
   whitespace and merge-marker checks.
 - **Branching and versions.** Work happens on `feat/*` branches merged by PR after a

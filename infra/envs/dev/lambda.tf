@@ -22,6 +22,7 @@ locals {
     MIN_MATCH_RATE               = tostring(var.min_match_rate)
     MAX_ENRICH_CREDITS           = tostring(var.max_enrich_credits)
     MAX_IDENTIFY_CREDITS         = tostring(var.max_identify_credits)
+    MAX_CREDITS_PER_BATCH        = tostring(var.max_credits_per_batch)
     IDENTIFY_MIN_SCORE           = tostring(var.identify_min_score)
     IDENTIFY_MIN_MARGIN          = tostring(var.identify_min_margin)
     ENRICH_MIN_LIKELIHOOD        = tostring(var.enrich_min_likelihood)
@@ -36,14 +37,24 @@ locals {
 data "aws_iam_policy_document" "validate_input" {
   statement {
     sid       = "ReadLanding"
-    actions   = ["s3:GetObject"]
+    actions   = ["s3:GetObject", "s3:GetObjectVersion"]
     resources = ["${module.storage.landing_bucket_arn}/incoming/*"]
   }
 
   statement {
-    sid       = "WriteParsedInput"
-    actions   = ["s3:PutObject"]
-    resources = ["${module.storage.data_bucket_arn}/input/*"]
+    sid     = "WriteParsedInputAndQuarantine"
+    actions = ["s3:PutObject"]
+    resources = [
+      "${module.storage.data_bucket_arn}/input/*",
+      "${module.storage.data_bucket_arn}/quarantine/*",
+    ]
+  }
+
+  # One execution per uploaded object version: the batch claim (conditional put).
+  statement {
+    sid       = "ClaimBatch"
+    actions   = ["dynamodb:PutItem", "dynamodb:GetItem"]
+    resources = [module.storage.state_table_arn]
   }
 }
 

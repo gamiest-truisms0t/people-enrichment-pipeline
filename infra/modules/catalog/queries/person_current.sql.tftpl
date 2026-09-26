@@ -1,0 +1,7 @@
+SELECT ${columns}
+FROM (
+    SELECT p.*,
+           row_number() OVER (PARTITION BY person_id ORDER BY enriched_at DESC, batch_id DESC) AS recency
+    FROM ${database}.dim_person p
+)
+WHERE recency = 1

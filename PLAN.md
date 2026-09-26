@@ -617,6 +617,38 @@ console-created only (now `aws_budgets_budget`); the `owner` tag (7) was missing
 
 ---
 
+### Phase 8 — Production practices (added 2026-09-26) — ✅ done 2026-09-26
+
+Chosen from a review of what comparable pipelines do that this one did not (options 1, 2,
+3, 7 and 10 of that list); ADR 0005 covers the CI part.
+
+1. **One execution per upload.** S3 and EventBridge deliver at least once. The batch id
+   is now derived from the object version (`batch_id_for_object`) and the first execution
+   to claim `batch#<id>` in DynamoDB (conditional put) owns it; a duplicate delivery ends
+   in a `DuplicateIgnored` state without enriching anything. Verified live by starting a
+   second execution with an identical input.
+2. **Per-batch credit cap.** `max_credits_per_batch` (default 40) is enforced through a
+   per-batch counter next to the monthly ones; rows past it are `budget_deferred` with the
+   reason, so one oversized upload cannot spend the month's pool.
+3. **Quarantine and redrive.** A file the guards reject is copied to `quarantine/files/`
+   with the reason as object metadata and the failure email points at it; rows a batch
+   rejects are exported to `quarantine/rows/<batch_id>.csv` and referenced from the
+   manifest and the warnings email. `make quarantine`, `make quarantine-get`, `make redrive`.
+   Lifecycle expiry 90 days.
+4. **`person_current` view.** A Trino view in Glue, created by Terraform the way Athena
+   stores its own views, with the latest enrichment per person across batches
+   (`make athena-verify` checks rows = distinct persons).
+5. **Deploys from CI through OIDC.** Plan on pull requests (state-read-only role, no
+   refresh), apply on merge to `main` (PowerUser plus scoped IAM) gated by the zero-credit
+   demo run, daily drift check (read-only role). `make ci-config` publishes the variables
+   and the alert-email secret to the repository.
+
+> Found and fixed on the way: the provider API key was in Terraform state after all
+> (`aws_ssm_parameter` reads SecureStrings back decrypted; `ignore_changes` does not stop
+> that). The parameter now uses the write-only `value_wo` argument, the state holds an
+> empty value, the older state versions were deleted from the versioned state bucket, and
+> the key was re-set with `make set-api-key`.
+
 ## 9. Credit and cost budget
 
 **API credits (PDL free plan, per calendar month):**

@@ -178,6 +178,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
   }
 
   rule {
+    id     = "expire-quarantine"
+    status = "Enabled"
+
+    filter {
+      prefix = "quarantine/"
+    }
+
+    expiration {
+      days = var.quarantine_retention_days
+    }
+  }
+
+  rule {
     id     = "housekeeping"
     status = "Enabled"
 

@@ -101,6 +101,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--location-hint", default=None, help="event location added to name lookups")
     run.add_argument("--max-enrich-credits", type=int, default=None)
     run.add_argument("--max-identify-credits", type=int, default=None)
+    run.add_argument(
+        "--max-credits-per-batch",
+        type=int,
+        default=None,
+        help="stop spending after this many credits in this run (rows become budget_deferred)",
+    )
     run.add_argument("--identify-min-score", type=int, default=70)
     run.add_argument("--identify-min-margin", type=int, default=20)
     run.add_argument(
@@ -151,6 +157,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         enrich_min_likelihood=args.enrich_min_likelihood,
         max_enrich_credits=args.max_enrich_credits,
         max_identify_credits=args.max_identify_credits,
+        max_credits_per_batch=args.max_credits_per_batch,
         location_hint=args.location_hint,
     )
     guards = GuardConfig(

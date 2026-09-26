@@ -4,7 +4,10 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+# The named profile is for laptops; CI runners get credentials from OIDC (GitHub sets CI=true).
+ifeq ($(CI),)
 export AWS_PROFILE ?= enrich-dev
+endif
 export AWS_REGION  ?= ap-southeast-1
 export AWS_PAGER   :=
 
@@ -14,7 +17,7 @@ ENV ?= dev
 .PHONY: help setup lint fmt test check precommit run query login whoami clean \
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
         e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify \
-        idempotency-proof iam-check branch-protection
+        idempotency-proof iam-check branch-protection quarantine quarantine-get redrive ci-config
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -71,6 +74,34 @@ branch-protection: ## Require the CI checks on main (.github/branch-protection.j
 	gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input .github/branch-protection.json \
 	  --jq '"required checks: " + (.required_status_checks.contexts | join(", "))'
 
+quarantine: ## List quarantined uploads (with their rejection reason) and rejected-row exports
+	scripts/quarantine.sh list
+
+quarantine-get: ## Download a quarantined object: KEY=quarantine/files/<name> [DEST=.]
+	@test -n "$(KEY)" || { echo "usage: make quarantine-get KEY=quarantine/files/<name> [DEST=.]"; exit 1; }
+	scripts/quarantine.sh get "$(KEY)" "$(or $(DEST),.)"
+
+redrive: ## Re-run a quarantined upload as-is (new object under incoming/redrive/): KEY=quarantine/files/<name>
+	@test -n "$(KEY)" || { echo "usage: make redrive KEY=quarantine/files/<name>"; exit 1; }
+	scripts/quarantine.sh redrive "$(KEY)"
+
+# GitHub Actions deploys through OIDC roles created by the bootstrap stack. This target
+# copies what the workflows need into the repository's Actions variables (role ARNs, region,
+# state bucket, the tfvars that are not secrets) and one secret (the alert email). Run it in
+# your own terminal after `make bootstrap`; it reads infra/envs/dev/terraform.tfvars.
+ci-config: ## Set the GitHub Actions variables and the alert-email secret for the Terraform workflows
+	@tfvar() { awk -v k="$$1" -F= '$$1 ~ "^[[:space:]]*"k"[[:space:]]*$$" { v=$$2; gsub(/^[[:space:]"]+|[[:space:]"]+$$/, "", v); print v; exit }' infra/envs/dev/terraform.tfvars; }; \
+	set -e; \
+	gh variable set AWS_REGION --body "$(AWS_REGION)"; \
+	gh variable set TF_STATE_BUCKET --body "$$($(TF_BOOTSTRAP) output -raw state_bucket)"; \
+	gh variable set AWS_PLAN_ROLE_ARN --body "$$($(TF_BOOTSTRAP) output -json github_role_arns | jq -r .plan)"; \
+	gh variable set AWS_READONLY_ROLE_ARN --body "$$($(TF_BOOTSTRAP) output -json github_role_arns | jq -r .readonly)"; \
+	gh variable set AWS_APPLY_ROLE_ARN --body "$$($(TF_BOOTSTRAP) output -json github_role_arns | jq -r .apply)"; \
+	for k in provider_name owner pdl_sandbox; do v="$$(tfvar $$k)"; [ -n "$$v" ] && gh variable set "TF_VAR_$$(echo $$k | tr a-z A-Z)" --body "$$v" || true; done; \
+	email="$$(tfvar alert_email)"; test -n "$$email" || { echo "alert_email missing from terraform.tfvars"; exit 1; }; \
+	gh secret set TF_VAR_ALERT_EMAIL --body "$$email"; \
+	echo "ok: variables and the alert-email secret are set (gh variable list / gh secret list)"
+
 query: ## Answer the brief's three questions against local Parquet with DuckDB
 	$(UV) run enrich query --out $(OUT)
 
@@ -105,7 +136,8 @@ package: ## Build build/lambda (arm64 wheels pinned from uv.lock) for Terraform 
 # --- Terraform ----------------------------------------------------------------
 TF_BOOTSTRAP := terraform -chdir=infra/bootstrap
 TF_ENV       := terraform -chdir=infra/envs/$(ENV)
-STATE_BUCKET  = $(shell terraform -chdir=infra/bootstrap output -raw state_bucket 2>/dev/null)
+# Locally from the bootstrap stack's output; in CI from the STATE_BUCKET environment variable.
+STATE_BUCKET ?= $(shell terraform -chdir=infra/bootstrap output -raw state_bucket 2>/dev/null)
 export TF_PLUGIN_CACHE_DIR ?= $(HOME)/.terraform.d/plugin-cache
 
 bootstrap: ## Create the Terraform state bucket (once; this stack keeps local state)

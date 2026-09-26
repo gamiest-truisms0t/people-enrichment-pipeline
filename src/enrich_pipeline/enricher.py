@@ -23,6 +23,7 @@ from typing import Any, Protocol
 
 from pydantic import ValidationError
 
+from enrich_pipeline.budget_rules import batch_cap_reason, monthly_ceiling_reason
 from enrich_pipeline.guards import match_flags
 from enrich_pipeline.models import (
     InputRow,
@@ -56,12 +57,19 @@ class EnrichConfig:
     max_enrich_credits: int | None = None
     max_identify_credits: int | None = None
     location_hint: str | None = None
+    # Credits one batch may spend in total, so a single oversized upload cannot burn the
+    # month's pool. None = only the monthly ceilings apply.
+    max_credits_per_batch: int | None = None
 
 
 class Budget(Protocol):
     """Credit ceilings per billable call kind plus a per-kind provider-exhausted marker."""
 
     def allows(self, kind: str) -> bool: ...
+
+    def blocked_reason(self, kind: str) -> str | None:
+        """Why a billable call of this kind may not be made now, or None if it may."""
+        ...
 
     def record(self, kind: str, credits: int) -> None: ...
 
@@ -78,18 +86,33 @@ class Budget(Protocol):
 class CreditBudget:
     """In-memory budget for a single local run."""
 
-    def __init__(self, *, enrich: int | None = None, identify: int | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        enrich: int | None = None,
+        identify: int | None = None,
+        per_batch: int | None = None,
+    ) -> None:
         self.limits: dict[str, int | None] = {"enrich": enrich, "identify": identify}
+        self.per_batch = per_batch
         self.spent: Counter[str] = Counter()
         self._exhausted: set[str] = set()
 
     @classmethod
     def from_config(cls, config: EnrichConfig) -> CreditBudget:
-        return cls(enrich=config.max_enrich_credits, identify=config.max_identify_credits)
+        return cls(
+            enrich=config.max_enrich_credits,
+            identify=config.max_identify_credits,
+            per_batch=config.max_credits_per_batch,
+        )
+
+    def blocked_reason(self, kind: str) -> str | None:
+        return monthly_ceiling_reason(
+            kind, self.spent[kind], self.limits.get(kind)
+        ) or batch_cap_reason(self.total_spent, self.per_batch)
 
     def allows(self, kind: str) -> bool:
-        limit = self.limits.get(kind)
-        return limit is None or self.spent[kind] < limit
+        return self.blocked_reason(kind) is None
 
     def record(self, kind: str, credits: int) -> None:
         self.spent[kind] += credits
@@ -247,11 +270,11 @@ class Enricher:
                 error_message=f"provider reported {plan.kind} credits exhausted (HTTP 402)",
                 attempts=0,
             )
-        if not self.budget.allows(plan.kind):
+        if (blocked := self.budget.blocked_reason(plan.kind)) is not None:
             return LookupResult(
                 **base,
                 status=LookupStatus.BUDGET_DEFERRED,
-                error_message=f"{plan.kind} credit budget is spent",
+                error_message=blocked,
                 attempts=0,
             )
 

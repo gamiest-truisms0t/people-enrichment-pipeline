@@ -108,6 +108,71 @@ resource "aws_athena_workgroup" "this" {
   force_destroy = true
 }
 
+# Current state per person. dim_person is a per-batch snapshot; this view keeps each
+# person's most recent enrichment so cross-batch questions do not repeat people. It is a
+# Trino view stored in Glue the way Athena stores its own (base64 JSON in the
+# "Presto View" comment), so it is created and versioned by Terraform like the tables.
+locals {
+  view_columns = [
+    { name = "person_id", glue = "string", trino = "varchar" },
+    { name = "full_name", glue = "string", trino = "varchar" },
+    { name = "current_job_title", glue = "string", trino = "varchar" },
+    { name = "current_company_name", glue = "string", trino = "varchar" },
+    { name = "current_company_industry", glue = "string", trino = "varchar" },
+    { name = "location_country", glue = "string", trino = "varchar" },
+    { name = "linkedin_url", glue = "string", trino = "varchar" },
+    { name = "match_likelihood", glue = "double", trino = "double" },
+    { name = "lookup_method", glue = "string", trino = "varchar" },
+    { name = "quality_flags", glue = "array<string>", trino = "array(varchar)" },
+    { name = "enriched_at", glue = "timestamp", trino = "timestamp(3)" },
+    { name = "batch_date", glue = "string", trino = "varchar" },
+    { name = "batch_id", glue = "string", trino = "varchar" },
+  ]
+
+  view_sql = templatefile("${path.module}/queries/person_current.sql.tftpl", {
+    database = aws_glue_catalog_database.this.name
+    columns  = join(", ", [for c in local.view_columns : c.name])
+  })
+
+  view_definition = {
+    originalSql  = local.view_sql
+    catalog      = "awsdatacatalog"
+    schema       = aws_glue_catalog_database.this.name
+    columns      = [for c in local.view_columns : { name = c.name, type = c.trino }]
+    owner        = data.aws_caller_identity.current.account_id
+    runAsInvoker = false
+    properties   = {}
+  }
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_glue_catalog_table" "person_current" {
+  name          = "person_current"
+  database_name = aws_glue_catalog_database.this.name
+  description   = "Latest enrichment per person across batches (view over dim_person)."
+  table_type    = "VIRTUAL_VIEW"
+
+  parameters = {
+    presto_view = "true"
+    comment     = "Presto View"
+  }
+
+  view_original_text = "/* Presto View: ${base64encode(jsonencode(local.view_definition))} */"
+  view_expanded_text = "/* Presto View */"
+
+  storage_descriptor {
+    dynamic "columns" {
+      for_each = local.view_columns
+
+      content {
+        name = columns.value.name
+        type = columns.value.glue
+      }
+    }
+  }
+}
+
 # The brief's three questions, saved in the workgroup so they show up in the console.
 resource "aws_athena_named_query" "question" {
   for_each = {

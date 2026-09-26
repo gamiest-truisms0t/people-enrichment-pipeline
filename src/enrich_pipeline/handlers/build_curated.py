@@ -158,6 +158,7 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         "rows_valid": len(results),
         "rows_invalid": len(invalid),
         "rows_unrecorded": len(unrecorded),
+        "rejected_rows_ref": input_doc.get("rejected_rows_ref") or "",
         "status_counts": dict(sorted(counts.items())),
         "credits_spent": sum(result.credits_consumed for result in results),
         "persons": len(tables["dim_person"]),

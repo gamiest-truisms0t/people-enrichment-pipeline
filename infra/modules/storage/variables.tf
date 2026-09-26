@@ -38,3 +38,9 @@ variable "table_write_capacity" {
   type    = number
   default = 5
 }
+
+variable "quarantine_retention_days" {
+  description = "Lifecycle expiry for quarantine/ (rejected uploads and rejected-row exports) in the data bucket."
+  type        = number
+  default     = 90
+}

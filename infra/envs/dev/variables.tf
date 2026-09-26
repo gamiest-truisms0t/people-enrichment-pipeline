@@ -85,6 +85,12 @@ variable "max_identify_credits" {
   default     = 2
 }
 
+variable "max_credits_per_batch" {
+  description = "Credits one batch may spend in total (both pools), so a single oversized upload cannot burn the month's allowance. Rows past the cap are budget_deferred."
+  type        = number
+  default     = 40
+}
+
 variable "identify_min_score" {
   type    = number
   default = 70

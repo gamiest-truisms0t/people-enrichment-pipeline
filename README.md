@@ -36,17 +36,78 @@ flowchart LR
 
 ## Contents
 
-1. [Quick start](#quick-start)
-2. [Architecture](#architecture)
-3. [Data model and the three questions](#data-model-and-the-three-questions)
-4. [Assumptions](#assumptions)
-5. [Failure handling and API limits](#failure-handling-and-api-limits)
-6. [Data guards](#data-guards)
-7. [Security](#security)
-8. [Cost](#cost)
-9. [Development](#development)
-10. [Limitations and next steps](#limitations-and-next-steps)
-11. [Appendix: provider findings and live runs](#appendix-provider-findings-and-live-runs)
+1. [Brief coverage and additions](#brief-coverage-and-additions)
+2. [Quick start](#quick-start)
+3. [Architecture](#architecture)
+4. [Data model and the three questions](#data-model-and-the-three-questions)
+5. [Assumptions](#assumptions)
+6. [Failure handling and API limits](#failure-handling-and-api-limits)
+7. [Data guards](#data-guards)
+8. [Security](#security)
+9. [Cost](#cost)
+10. [Development](#development)
+11. [Limitations and next steps](#limitations-and-next-steps)
+12. [Appendix: provider findings and live runs](#appendix-provider-findings-and-live-runs)
+
+## Brief coverage and additions
+
+The brief asked for a serverless AWS pipeline that enriches an event's registration list
+(first and last names) through a free people-profile API, extracts the individuals and
+their employment history, cleans and stores the result in a format a data engineer or
+analyst can use, is provisioned entirely with Terraform, runs when triggered, allows no
+public access, is version-controlled with best practices, and comes with a README on the
+architecture, the assumptions and the handling of failures and API limits. Everything in
+it is built and verified; the first table maps each item to where it lives. The second list
+is what we added on our own initiative, none of it required by the brief and none of it
+costing anything on the free plan.
+
+**What the brief asked for**
+
+| Brief | Where it is |
+|---|---|
+| A serverless pipeline on AWS, any services | Step Functions, Lambda, S3, EventBridge, DynamoDB, SNS, Glue and Athena ([Architecture](#architecture)) |
+| Enrich names from an event registration system through a free people-profile API | People Data Labs on its free plan behind a provider interface, using email, LinkedIn URL, company and location when a row has them ([Assumptions](#assumptions), [ADR 0001](docs/adr/0001-enrichment-provider.md)) |
+| Complete the whole project on free credits | self-imposed ceilings below the plan's allowance, a lookup cache, a per-batch cap; about 25 of the month's 100 enrichment credits used across every live run ([Cost](#cost), [Appendix](#appendix-provider-findings-and-live-runs)) |
+| Extract individuals and their employment history | `dim_person` and `fact_employment`, one row per position with company, title, seniority levels and dates ([Data model](#data-model-and-the-three-questions)) |
+| Clean the data and store it in a format easy for a data engineer or analyst | data guards on the way in; Parquet in S3 registered in Glue and queried with SQL in Athena; saved queries and the `person_current` view ([Data guards](#data-guards), [Data model](#data-model-and-the-three-questions)) |
+| Answer who the individuals are, which companies they worked at, which roles they held | saved queries 1 to 3 and the `person_current` view, verified against live data on 2026-09-26 ([Data model](#data-model-and-the-three-questions)) |
+| Terraform for all infrastructure and services; code runs when triggered | `infra/` (a bootstrap stack and the dev stack over five modules); an S3 upload is the trigger; the stack was destroyed and rebuilt from nothing twice ([Quick start](#quick-start), [Development](#development)) |
+| VPCs assumed present; focus on configuration and security of the other services | outbound HTTPS only, so no VPC is needed; `lambda_vpc_config` attaches the functions to existing subnets when required; one least-privilege role per principal ([Assumptions](#assumptions), [Security](#security)) |
+| Ingestion is our choice | a CSV copied to the landing bucket, with header aliases and a published input contract ([Quick start](#quick-start), [Data guards](#data-guards)) |
+| No public access to the application | no API or function URL, public access blocked at bucket and account level, an IAM-only trigger ([Security](#security)) |
+| Version control with best practices | protected `main`, pull requests with a review before each, conventional commits, tags, pinned actions, secret scanning ([Development](#development)) |
+| README on architecture, assumptions, failures and API limits | the three sections of those names |
+
+**Added on our own initiative**
+
+- **Reliability.** A per-row idempotency cache with a two-upload proof; one execution per
+  upload against duplicate S3 and EventBridge deliveries; rows whose invocation crashed still
+  reach the audit table; a circuit breaker for provider outages; retries with header-driven
+  waits; quarantine and redrive for rejected files; replay tooling with a `pipeline_version`
+  on every row ([Failure handling](#failure-handling-and-api-limits)).
+- **Credit protection.** Monthly ceilings per credit pool, a per-batch cap, a provider-402
+  marker, month-to-date gauges with alarms at 90 % ([Failure handling](#failure-handling-and-api-limits)).
+- **Data quality.** Four layers of data guards, `quality_flags` on every row, a
+  `fact_batch_quality` history table, the generated input contract with its dry-run
+  command, an optional consent column ([Data guards](#data-guards)).
+- **Observability and cost control.** Nine alarms, a dashboard, an AWS Budget, a $1
+  cost-anomaly subscription, custom metrics kept within the free ten ([Cost](#cost)).
+- **Security beyond "no public access".** Per-principal least privilege verified with IAM
+  Access Analyzer, TLS-only and encrypted buckets, an account-level public-access block, an
+  append-only raw layer, the API key kept out of Terraform state, an external-access
+  analyzer, execution logs without payloads ([Security](#security)).
+- **Delivery.** CI with lint, tests, Terraform validation, tflint, checkov and gitleaks;
+  deploys from GitHub Actions through OIDC roles with a plan comment on every pull request,
+  apply on merge gated by a zero-credit run, and daily drift detection; Dependabot;
+  pre-commit hooks that mirror CI ([Development](#development), [ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
+- **Testing.** 149 tests across pure logic, provider contracts on recorded fixtures and
+  handlers on mocked AWS; end-to-end runs that count the batch in Athena; the idempotency
+  proof; the IAM check; two destroy-and-rebuild proofs ([Development](#development)).
+- **Analytics extras.** Partition projection instead of crawlers, six saved queries, the
+  `person_current` view, and a local DuckDB path that answers the same questions without an
+  AWS account ([Data model](#data-model-and-the-three-questions)).
+- **Documentation.** Five decision records, an architecture document, and the plan with its
+  phase log and every deviation ([docs/](docs/), [PLAN.md](PLAN.md)).
 
 ## Quick start
 

@@ -118,11 +118,13 @@
     "BuildCurated": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "row_errors carries the rows whose invocation crashed (RowFailed records) so the curated step records them as error rows.",
       "Parameters": {
         "FunctionName": "${build_curated_arn}",
         "Payload": {
           "batch_id.$": "$.batch.batch_id",
-          "batch_date.$": "$.batch.batch_date"
+          "batch_date.$": "$.batch.batch_date",
+          "row_errors.$": "$.enriched[?(@.status == 'error')]"
         }
       },
       "ResultSelector": {
@@ -165,6 +167,7 @@
         "row_count.$": "$.batch.row_count",
         "invalid_count.$": "$.batch.invalid_count",
         "row_errors.$": "States.ArrayLength($.enriched[?(@.status == 'error')])",
+        "failed_rows.$": "States.JsonToString($.enriched[?(@.status == 'error')].row_number)",
         "curated.$": "$.curated"
       },
       "ResultPath": "$.summary",
@@ -187,7 +190,7 @@
       "Parameters": {
         "TopicArn": "${alerts_topic_arn}",
         "Subject": "People-enrichment: batch completed with row errors",
-        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows. Persons curated: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.curated.persons, $.summary.curated.manifest_ref, $$.Execution.Id)"
+        "Message.$": "States.Format('Batch {} from {} completed with {} row error(s) out of {} rows (input row numbers {}). Persons curated: {}. Manifest: {}. Execution: {}', $.summary.batch_id, $.summary.source, $.summary.row_errors, $.summary.row_count, $.summary.failed_rows, $.summary.curated.persons, $.summary.curated.manifest_ref, $$.Execution.Id)"
       },
       "ResultPath": null,
       "Next": "Succeeded"

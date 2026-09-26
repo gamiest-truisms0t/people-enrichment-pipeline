@@ -132,6 +132,55 @@ class LookupPlan:
     key: str
 
 
+def plan_lookup(row: InputRow, config: EnrichConfig) -> LookupPlan:
+    """Choose the ladder rung, the provider parameters and the cache key for one row.
+
+    A module-level function so the curated step can reproduce the exact key and method
+    of a row whose enrich invocation never recorded a result.
+    """
+    location = row.location or config.location_hint
+    if row.email:
+        method, kind = LookupMethod.EMAIL, "enrich"
+        params = {"email": row.email}
+    elif row.linkedin_url:
+        method, kind = LookupMethod.LINKEDIN, "enrich"
+        params = {"profile": row.linkedin_url}
+    elif row.company or location:
+        method, kind = LookupMethod.NAME_CONTEXT, "enrich"
+        params = {"first_name": row.first_name, "last_name": row.last_name}
+        if row.company:
+            params["company"] = row.company
+        if location:
+            params["location"] = location
+    else:
+        method, kind = LookupMethod.NAME_ONLY, "identify"
+        params = {"first_name": row.first_name, "last_name": row.last_name}
+
+    if kind == "enrich":
+        params["min_likelihood"] = str(config.enrich_min_likelihood)
+
+    # Anything that changes how an answer is produced or judged is part of the key, so
+    # tuning a threshold re-queries instead of replaying a cached outcome: the enrich
+    # likelihood is applied by the provider, the identify gate by us.
+    if kind == "enrich":
+        extra = f"min_likelihood={params['min_likelihood']}"
+    else:
+        extra = (
+            f"identify_min_score={config.identify_min_score}"
+            f";identify_min_margin={config.identify_min_margin}"
+        )
+    key = lookup_key(
+        row.first_name,
+        row.last_name,
+        email=row.email,
+        company=row.company,
+        location=location if method is LookupMethod.NAME_CONTEXT else None,
+        linkedin_url=row.linkedin_url,
+        extra=extra,
+    )
+    return LookupPlan(method=method, kind=kind, params=params, key=key)
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -162,47 +211,7 @@ class Enricher:
     # ------------------------------------------------------------------ planning
 
     def plan(self, row: InputRow) -> LookupPlan:
-        location = row.location or self.config.location_hint
-        if row.email:
-            method, kind = LookupMethod.EMAIL, "enrich"
-            params = {"email": row.email}
-        elif row.linkedin_url:
-            method, kind = LookupMethod.LINKEDIN, "enrich"
-            params = {"profile": row.linkedin_url}
-        elif row.company or location:
-            method, kind = LookupMethod.NAME_CONTEXT, "enrich"
-            params = {"first_name": row.first_name, "last_name": row.last_name}
-            if row.company:
-                params["company"] = row.company
-            if location:
-                params["location"] = location
-        else:
-            method, kind = LookupMethod.NAME_ONLY, "identify"
-            params = {"first_name": row.first_name, "last_name": row.last_name}
-
-        if kind == "enrich":
-            params["min_likelihood"] = str(self.config.enrich_min_likelihood)
-
-        # Anything that changes how an answer is produced or judged is part of the key, so
-        # tuning a threshold re-queries instead of replaying a cached outcome: the enrich
-        # likelihood is applied by the provider, the identify gate by us.
-        if kind == "enrich":
-            extra = f"min_likelihood={params['min_likelihood']}"
-        else:
-            extra = (
-                f"identify_min_score={self.config.identify_min_score}"
-                f";identify_min_margin={self.config.identify_min_margin}"
-            )
-        key = lookup_key(
-            row.first_name,
-            row.last_name,
-            email=row.email,
-            company=row.company,
-            location=location if method is LookupMethod.NAME_CONTEXT else None,
-            linkedin_url=row.linkedin_url,
-            extra=extra,
-        )
-        return LookupPlan(method=method, kind=kind, params=params, key=key)
+        return plan_lookup(row, self.config)
 
     # ------------------------------------------------------------------ lookup
 

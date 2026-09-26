@@ -17,7 +17,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from enrich_pipeline.aws.dynamo import DynamoBudget, DynamoCache
 from enrich_pipeline.aws.s3 import put_json
-from enrich_pipeline.enricher import EnrichConfig, Enricher
+from enrich_pipeline.enricher import Enricher
 from enrich_pipeline.handlers.common import (
     METRIC_BY_STATUS,
     Settings,
@@ -59,17 +59,13 @@ def build_enricher(settings: Settings, *, batch_date: str, batch_id: str) -> Enr
     table = dynamodb_resource().Table(settings.state_table)
     return Enricher(
         provider,
-        config=EnrichConfig(
-            identify_min_score=settings.identify_min_score,
-            identify_min_margin=settings.identify_min_margin,
-            enrich_min_likelihood=settings.enrich_min_likelihood,
+        config=settings.enrich_config(
             # Worst case 2 waits x 20 s plus call time stays well inside the 90 s timeout;
             # Step Functions retries the invocation if the row still needs more attempts.
             max_attempts=3,
             max_wait_seconds=20.0,
             max_enrich_credits=settings.max_enrich_credits,
             max_identify_credits=settings.max_identify_credits,
-            location_hint=settings.location_hint,
         ),
         cache=DynamoCache(table),
         budget=DynamoBudget(

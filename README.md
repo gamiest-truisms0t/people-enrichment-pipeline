@@ -122,6 +122,31 @@ receives failures, batches completed with warnings, and alarm notifications.
   named in the brief, returns dated employment history, has a free sandbox; the mock
   provider exercises every outcome offline.
 
+**One upload, step by step**
+
+1. An operator (or any IAM principal allowed to write to the landing bucket) copies a CSV
+   under `incoming/`. Nothing else starts a run: there is no API, no function URL, no
+   schedule.
+2. S3 notifies EventBridge; the rule starts one Step Functions execution with the bucket,
+   key and object version. A duplicate delivery of the same event starts a second execution
+   that stops at `DuplicateIgnored` as soon as it sees the batch is already claimed.
+3. `ValidateInput` reads the object, applies the file-level guards (size, encoding,
+   delimiter, header, share of rejected rows), claims the batch in DynamoDB, exports
+   rejected rows to `quarantine/rows/`, writes the parsed input to `input/` and returns the
+   valid rows inline. A file that fails as a whole is copied to `quarantine/files/` with the
+   reason and the execution fails.
+4. The Map runs `enrich` once per row, one row at a time: cache lookup, then the credit
+   ceilings and the circuit breaker, then the provider call by the strongest identifier
+   (email, LinkedIn URL, name plus company or location, name alone) with header-driven
+   retries; the raw response goes to `raw/`, the result to `results/`, and the cache and
+   counters are updated.
+5. `BuildCurated` reads the parsed input and every result, records any row that produced
+   no result as `error`, runs the output checks, and writes the four Parquet files under
+   `curated/` plus the manifest with its quality report.
+6. The execution succeeds. If a row crashed or the quality report has warnings, the alerts
+   email lists them. Athena sees the new partition immediately through partition
+   projection; `person_current` and the saved queries answer the brief's three questions.
+
 ## Data model and the three questions
 
 One Parquet file per table per batch, Hive-partitioned by `batch_date`. Columns are
@@ -175,58 +200,122 @@ titles (for example Nasdaq, executive vice president of corporate strategy, VP l
 
 ## Assumptions
 
-- **Input.** A CSV with a header; `first_name` and `last_name` are required (aliases such
-  as `First Name`, `Surname` are recognised); `email`, `company`, `location` and
-  `linkedin_url` are optional and used when present. The brief's objective mentions email
-  addresses while its problem statement gives names; the pipeline uses the strongest
-  identifier each row has.
-- **A name alone is a weak identifier.** Name-only rows go through the provider's
-  identify call behind a confidence gate (top candidate score ≥ 70 and 20 points clear of
-  the runner-up); otherwise the row is recorded as `ambiguous` rather than guessed. Because
-  identify costs a credit whether or not it matches and the free plan grants only five a
-  month, inputs should carry a company or location column whenever the registration system
-  has one.
-- **Provider.** People Data Labs on its free plan; the adapter interface, the mock provider
-  and recorded sandbox fixtures keep the pipeline demonstrable if credits run out or the
-  provider changes its plan (comparison of eight providers in ADR 0001).
-- **Networking.** Functions run outside a VPC because they only make outbound HTTPS calls;
-  a VPC attachment would need a NAT gateway, which is not free. `lambda_vpc_config`
-  attaches them to existing private subnets when a network boundary is required.
-- **Scope.** One account, one region (`ap-southeast-1`), one environment (`dev`); another
-  environment is a copy of `infra/envs/dev` with its own state key. Inline Map caps a
-  file at 500 rows (`max_rows`); larger files are split or need Distributed Map.
-- **Free tier.** Credits bound the run size: 100 enrichment and 5 identify credits a
-  month at the provider; self-imposed ceilings of 70 and 2 keep a reserve. The design
-  scales by raising the ceilings and the concurrency, not by changing shape.
-- **PII.** Only what the three questions need is stored: names, employer and title
-  history, country, LinkedIn URL, match score. Contact fields the provider returns are
-  never stored; the free plan obscures them anyway. Logs carry ids and counts, never names.
-  Enriching event registrants in production would need a lawful basis (PDPA/GDPR) and a
-  retention policy; the lifecycle rules here (raw 90 days, landing 30 days) are a starting
-  point.
-- **Credit accounting** trusts the provider's `x-call-credits-spent` header (1 assumed when
-  absent on a billable call); the DynamoDB counter is the source of truth for the guard.
-  `x-totallimit-remaining` is reported but not reconciled, because it includes spend from
-  outside this pipeline.
+Written so a reviewer can disagree with them; each one names its consequence.
+
+**About the input**
+
+- The file is a registration list: one row is one person, `first_name` and `last_name`
+  are always present, and `email`, `company`, `location`, `linkedin_url` and `consent`
+  appear when the registration system has them. Header spellings vary (`First Name`,
+  `Surname`, `E-mail`, `Organisation`, `LinkedIn`, `opt_in`); the pipeline maps them and
+  ignores unknown columns with a warning. The exact contract is
+  [docs/input-contract.json](docs/input-contract.json).
+- The brief's objective says "email addresses" while its problem statement gives names.
+  The pipeline does not choose: each row is looked up by the strongest identifier it has,
+  email, then LinkedIn URL, then name plus company or location, then name alone.
+- A name alone does not identify a person. Name-only rows use the provider's identify call
+  behind a confidence gate (top candidate scored at least 70 and 20 points clear of the
+  runner-up); anything less is recorded as `ambiguous`, never guessed. Names are normalised
+  before they are sent or cached (Unicode NFKC, case-folded, punctuation and whitespace
+  collapsed), accents kept, so `José` and `Jose` are two lookups; the check that compares an
+  input surname with the matched profile is accent-insensitive.
+- A file has at most 500 rows, because the inline Map carries them. A larger export is
+  split before upload, or the design moves to Distributed Map.
+- Exports are not clean. A row with a usable name is kept even when its optional fields are
+  bad (the field is dropped with a note); only unusable names, explicit consent refusals and
+  files that as a whole do not match their header are rejected. [Data guards](#data-guards)
+  has every rule.
+
+**About the provider**
+
+- People Data Labs' free plan grants 100 enrichment credits and 5 identify credits a month;
+  enrichment bills only a match, identify bills every call. The pipeline caps itself at 70
+  and 2 a month and 40 per batch, so one run can never spend what the next one needs. The
+  counters are keyed by calendar month and reset with it.
+- Correct name-plus-company matches for well-known people score about 4 on the provider's
+  1 to 10 likelihood scale, so the threshold is 4. That is a recall-over-precision choice:
+  a few matches at 4 are wrong, and every person row carries `match_likelihood` and
+  `quality_flags` so an analyst can tighten it downstream without re-querying.
+- Provider data is stored as delivered, not corrected. A stale "current job", a wrong
+  country or a malformed employment date is flagged (`match.*` quality flags), never
+  edited; the raw response is kept for 90 days so a rule change can be replayed with
+  `make rebuild-all` at no credit cost.
+- The provider is a dependency, not a design constraint. The adapter interface, the mock
+  provider and the recorded sandbox fixtures keep the pipeline runnable and testable if the
+  credits run out or the plan changes; the free plan obscures contact and fine-grained
+  location fields, which the pipeline never stores anyway. Eight providers were compared in
+  [ADR 0001](docs/adr/0001-enrichment-provider.md).
+- Credit accounting trusts the provider's `x-call-credits-spent` header, and assumes one
+  credit when the header is missing on a billable call. The DynamoDB counter is the source
+  of truth for the guard; the provider's `x-totallimit-remaining` is shown by `make report`
+  but not reconciled, because it includes spend from outside this pipeline.
+
+**About the platform**
+
+- One AWS account, one region (`ap-southeast-1`), one environment (`dev`), on the Free plan,
+  which cannot be charged. Another environment is a copy of `infra/envs/dev` with its own
+  state key and an entry in the bootstrap stack's `environments` list.
+- The functions run outside a VPC: they make outbound HTTPS calls only, and a VPC attachment
+  would need a NAT gateway, which is not free. `lambda_vpc_config` attaches them to existing
+  private subnets when a network boundary is required.
+- Everything is created by Terraform except three things: the value of the provider API key
+  (set out of band into SSM with `make set-api-key`, never in git or state), the click on
+  the SNS confirmation email, and the GitHub Actions variables that `make ci-config` writes.
+- Deploys come from `main` through GitHub Actions and OIDC roles. A laptop `make apply`
+  still works and is reported by the daily drift check the next morning.
+
+**About the data and privacy**
+
+- Only what the three questions need is stored: names, employer and title history,
+  country, LinkedIn URL, match score and input lineage. Contact details, birth dates and
+  fine-grained location are never stored; logs carry ids and counts, not names.
+- `dim_person` is a per-batch snapshot: a person uploaded twice appears once per batch, by
+  design, so each upload is reproducible; `person_current` and saved query 5 give one row
+  per person across uploads.
+- Retention is a starting point, not a policy: raw responses 90 days, landing uploads 30,
+  quarantine 90, Athena results 7, cache entries 90; the curated tables are kept. Enriching
+  event registrants in production needs a lawful basis (PDPA or GDPR) and a records-of-
+  processing entry; the optional `consent` column and `require_consent` are the hook for it,
+  and an erasure command is the next step listed under Limitations.
 
 ## Failure handling and API limits
 
-| Concern | What the pipeline does |
-|---|---|
-| Rate limit (HTTP 429) | The enrich function reads `x-ratelimit-reset` (a UTC timestamp at this provider) or `Retry-After`, sleeps until the window reopens (capped at 20 s), and retries up to three attempts inside its 90 s timeout. `MaxConcurrency` 1 keeps even an all-name-only batch under the 10-per-minute identify limit. |
-| Transient 5xx or network errors | Exponential backoff inside the function; the Map retries Lambda service errors (2 s, ×2, jitter, 3 attempts). Every call is idempotent through the cache key, so a retry never double-spends. |
-| Provider outage (a run of 5xx or timeouts) | A circuit breaker shared across invocations opens after `breaker_threshold` (3) consecutive failures for `breaker_cooldown_seconds` (300); rows in that window are `provider_unavailable` (not cached, so a later run or `make redrive` retries them) and the batch's warnings email says so. Any success closes it. |
-| Credit exhaustion | Per-pool monthly counters in DynamoDB (`enrich` 70, `identify` 2, below the plan's 100 and 5) are checked before every billable call; rows past a ceiling are `budget_deferred` and the batch still completes. An HTTP 402 marks that pool exhausted for the month so the remaining rows skip the call. Alarms fire at 90 % of each ceiling. |
-| Duplicate names, re-uploaded files | Normalised lookup key (NFKC, casefold, punctuation and whitespace folded, plus the identifiers and thresholds used) → DynamoDB cache with a 90-day TTL; a hit costs nothing and reuses the stored profile. Proof on 2026-09-26: first upload 4 matched, 1 not found, 1 invalid, **4 credits**; second upload of the same file 5 `cached`, 1 invalid, **0 credits**, identical persons and positions. |
-| Duplicate trigger events | S3 notifications and EventBridge deliver at least once. The batch id is derived from the object version and the first execution to claim it in DynamoDB (conditional write) owns it; a second delivery ends in `DuplicateIgnored` with no rows enriched. Verified by starting a second execution with an identical input. |
-| One upload spending the month | `max_credits_per_batch` (default 40) is enforced through a per-batch counter beside the monthly ones; rows past the cap are `budget_deferred` with `credit budget: batch cap (40) reached`. |
-| Bad files and rows | See [Data guards](#data-guards): a file that cannot be processed fails the batch with the reason **and is kept under `quarantine/files/` with that reason as object metadata**; rows a batch rejects are exported to `quarantine/rows/<batch_id>.csv` for the source owner. `make quarantine` lists both, `make quarantine-get` downloads, `make redrive` re-submits a quarantined file (a new object, so never a duplicate). |
-| Provider payload changes | pydantic models with `extra="ignore"`, obscured `true`/`false` values coerced to null, contract tests against recorded sandbox and live fixtures; raw JSON is kept so the curated tables can be rebuilt. |
-| Partial batch failure | A row whose invocation crashes or times out after retries becomes an `error` record; `BuildCurated` still runs and records that row in `fact_lookup` with the Step Functions Error and Cause, so every input row is accounted for. The execution succeeds and the "completed with warnings" email lists the row numbers. |
-| Poison inputs, repeated failure | Execution-level Catch publishes to SNS and fails the execution with the original error; alarms on Lambda `Errors`, `ExecutionsFailed`, `ExecutionsTimedOut` and a non-empty dead-letter queue. |
-| Reprocessing without credits | `make rebuild BATCH=<id>` invokes `build-curated` alone, reading the stored results. |
-| Timeouts | `validate-input` 60 s, `enrich` 90 s (room for two rate-limit waits), `build-curated` 300 s; the state machine 1 hour. |
-| Cost leaks | Log retention 14 days; lifecycle rules on `raw/`, `athena-results/` and the landing bucket; provisioned DynamoDB inside the free allowance; an AWS Budget at $5 with alerts at 20 % actual and 100 % forecast; `make destroy` verified. |
+Four rules shape every case below. A bad row never stops the batch. A batch never spends
+the month's credits. Nothing is retried at the price of a credit. And every input row ends
+in `fact_lookup` with a status and a reason, so "what happened to row 17" is always a query.
+Outcomes surface in three places: the status columns of `fact_lookup` and
+`fact_batch_quality`, the batch manifest under `manifests/`, and the alerts email
+(execution failures, "completed with warnings", alarms).
+
+**Row statuses** (`fact_lookup.status`, one row per input row):
+
+| Status | Meaning | Cached for next time | Credits |
+|---|---|---|---|
+| `matched` | the provider returned a profile that passed the confidence gate | yes | 1 |
+| `cached` | served from an earlier lookup of the same normalised key | it is the cache | 0 |
+| `not_found` | the provider has no record (HTTP 404) | yes | enrich 0, identify 1 |
+| `ambiguous` | identify candidates below the gate (score under 70 or margin under 20) | yes | 1 |
+| `budget_deferred` | a monthly or per-batch ceiling, or a provider 402, stopped the call | no | 0 |
+| `provider_unavailable` | skipped while the circuit breaker was open | no | 0 |
+| `invalid_input` | rejected by the row guards or by consent, before any call | n/a | 0 |
+| `error` | 5xx or transport failure after retries, or the invocation crashed | no | 0 |
+
+| Concern | What the pipeline does | Where you see it |
+|---|---|---|
+| Rate limit (HTTP 429) | The enrich function reads the provider's `x-ratelimit-reset` (a UTC timestamp at this provider) or `Retry-After`, sleeps until the window reopens (capped at 20 s) and retries, three attempts inside its 90 s timeout. `MaxConcurrency` 1 keeps even an all-name-only batch under the 10-per-minute identify limit. | `attempts` on the row; execution time on the dashboard |
+| Transient 5xx or network errors | Backoff inside the function (2 s, then 4 s, capped at 20 s), three attempts; the Map retries Lambda service errors (2 s, ×2, jitter, 3 attempts). Every call is idempotent through the cache key, so a retry never double-spends, and the provider does not bill 5xx responses. | `error` rows with `http_status` and `error_message` |
+| Provider outage (a run of failures) | A circuit breaker shared across invocations (`breaker#pdl` in DynamoDB) opens after 3 consecutive failures for 300 s. Rows in that window are `provider_unavailable` without a call and are not cached, so a re-upload or `make redrive` retries them. Any successful response closes it. | `provider_unavailable` rows; `provider_unavailable:` warning in the manifest and the email |
+| Credit exhaustion | Per-pool monthly counters (`enrich` 70, `identify` 2, below the plan's 100 and 5) are checked before every billable call; rows past a ceiling are `budget_deferred` and the batch still completes. A provider 402 marks that pool exhausted for the rest of the month. Counters are keyed by calendar month, so the ceilings reset on the first. | `budget_deferred` rows; `enrich-credits-90pct` and `identify-credits-90pct` alarms; the gauges on the dashboard |
+| One upload spending the month | `max_credits_per_batch` (40) is enforced through a per-batch counter beside the monthly ones. | `credit budget: batch cap (40) reached` in `error_message` |
+| Duplicate names, re-uploaded files | Normalised lookup key (NFKC, case fold, punctuation and whitespace folded, plus the identifiers and thresholds used) → DynamoDB cache, TTL 90 days; a hit costs nothing and reuses the stored profile. Proof on 2026-09-26: first upload 4 matched, 1 not found, **4 credits**; the same file again, 5 `cached`, **0 credits**, identical persons and positions. | `cached` rows; `credits_spent: 0` in the manifest |
+| Duplicate trigger events | S3 notifications and EventBridge deliver at least once. The batch id is derived from the object version and the first execution to claim it (a conditional write) owns it; a second delivery ends in `DuplicateIgnored` with no rows enriched. Verified by starting a second execution with the identical input. | the execution's last state; `duplicate: true` in its output |
+| A file the guards reject | The execution fails with the reason, and the file is kept under `quarantine/files/` with that reason as object metadata. `make quarantine` lists it, `make quarantine-get` downloads it, `make redrive` re-submits it as a new object once fixed. | failure email with the quarantine path; `make quarantine` |
+| Rows the guards reject or salvage | An unusable name or an explicit consent refusal makes the row `invalid_input`; a bad optional field is dropped with a note and the row continues. Rejected rows are exported to `quarantine/rows/<batch_id>.csv` for the source owner. | `invalid_input` rows with the reason; `quality_flags`; the export path in the manifest and the warnings email |
+| Provider payload changes | pydantic models with `extra="ignore"`, obscured `true`/`false` values coerced to null, contract tests against recorded sandbox and live fixtures. Raw JSON is kept, so `make rebuild-all` replays every batch through the current code at no credit cost. | `match.*` flags; `pipeline_version` on every rebuilt row |
+| A row's invocation crashes or times out | The Map catches it into an `error` record; `BuildCurated` still runs and writes that row to `fact_lookup` with the Step Functions Error and Cause, so every input row is accounted for. The execution succeeds. | `error` rows; the "completed with warnings" email lists the row numbers |
+| Poison inputs, repeated failure | An execution-level Catch publishes to SNS and fails the execution with the original error; anything an asynchronous invocation or EventBridge could not deliver lands on the dead-letter queue. | failure email; alarms on Lambda `Errors`, `ExecutionsFailed`, `ExecutionsTimedOut`, DLQ depth |
+| Slow batches | Rows run one at a time: about three minutes per 100 rows that carry a company, while name-only rows are held to the provider's 10 identify calls a minute. An execution slower than `max_execution_seconds` (600) alarms. Function timeouts: `validate-input` 60 s, `enrich` 90 s (room for two rate-limit waits), `build-curated` 300 s; the state machine 1 hour. | `pipeline-execution-time` alarm; execution time on the dashboard |
+| Cost leaks | Log retention 14 days; lifecycle rules on `raw/`, `quarantine/`, `athena-results/` and the landing bucket; provisioned DynamoDB inside the free allowance; nine custom metrics inside the free ten; an AWS Budget at $5 (20 % actual, 100 % forecast) and a $1 cost-anomaly subscription; `make destroy` verified. | budget and anomaly emails; the Cost section |
 
 **Alarms** (nine, inside the always-free ten): `<function>-errors` ×3, `pipeline-executions-failed`,
 `pipeline-executions-timed-out`, `pipeline-execution-time` (an execution slower than

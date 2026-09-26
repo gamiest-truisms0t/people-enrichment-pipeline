@@ -49,11 +49,16 @@ What `make apply` creates, all inside always-free allowances:
 | Step Functions state machine | `validate-input` → Map over rows (`enrich`, `MaxConcurrency` 1) → `build-curated` → summary; retries, per-row catch, SNS on failure |
 | EventBridge rule | S3 `Object Created` on `incoming/*.csv` in the landing bucket starts an execution; undeliverable events go to the DLQ |
 | SNS topic + email subscription | pipeline failures, batches with row errors, and the Lambda error alarms |
+| AWS Budget | `monthly_budget_usd` (default $5): email at 20 % actual and 100 % forecast spend |
 
 Both buckets block public access, enforce TLS, are versioned and SSE-S3 encrypted. No
 public endpoint exists: functions are invoked only by Step Functions or by an IAM
 principal, and the only way to start a run is to write to the landing bucket. Every
 checkov skip is listed with a reason in `.checkov.yaml` or inline next to the resource.
+The functions run outside any VPC because they only make outbound HTTPS calls; set
+`lambda_vpc_config` (subnet and security-group ids) to attach them to existing private
+subnets, which then need a NAT gateway or interface endpoints for the provider API and
+the AWS services they use.
 
 ## Querying the results in Athena
 
@@ -103,6 +108,15 @@ SECURITY_WARNING findings**; the only wildcard-resource statements are X-Ray tra
 uploads, `cloudwatch:PutMetricData` (restricted by a namespace condition) and Step
 Functions log-delivery management, none of which support resource-level permissions.
 checkov passes 299 checks with one inline, documented skip.
+
+**Complete audit trail.** Every input row has exactly one `fact_lookup` row. Rows the
+provider could not resolve carry `not_found`, `ambiguous` or `budget_deferred`; rows
+rejected by validation carry `invalid_input`; and a row whose enrich invocation crashed or
+timed out after the Map's retries is recorded as `error` with the Step Functions Error and
+Cause, because the curated step reconciles the parsed input against the result objects.
+The batch still completes, the notification email lists the failed row numbers, and
+`make rebuild BATCH=<id>` rebuilds the tables without touching the provider. `make e2e`
+asserts this by counting the batch's rows in Athena.
 
 **Idempotency proof.** `make idempotency-proof` pushes `data/demo/idempotency.csv` through
 the deployed pipeline twice and asserts the second run is served entirely from the cache.

@@ -511,7 +511,17 @@ with a commit/tag and a working state you could submit if you ran out of time.
 2. `docs/athena_queries.sql` verified in the console; screenshots for the README.
    *Done when:* the three queries run in Athena on the demo batch.
 
-### Phase 6 — Hardening, observability, CI (2–3 h)
+### Phase 6 — Hardening, observability, CI (2–3 h) — ✅ done 2026-09-26
+
+> Deviations: the budget alarms watch month-to-date counters that the enrich function
+> publishes as EMF metrics after each lookup (read back from the shared DynamoDB budget),
+> one per credit pool; the least-privilege pass is automated (`make iam-check`: wildcard
+> statements listed, IAM Access Analyzer validation, zero findings); CI already had the
+> Terraform job, so this phase added a gitleaks secret scan and Dependabot; server-side
+> branch protection required making the repository public (GitHub Free does not offer it
+> on private repos), which the take-home needs anyway; the idempotency proof is a script
+> (`make idempotency-proof`) that runs a fresh five-row file twice and asserts the second
+> run is entirely cached at zero credits.
 
 1. Alarms: Lambda errors, state-machine failed executions, budget counter ≥ 90 %.
 2. Least-privilege pass on every IAM policy (no `*` resources); checkov high/critical = 0.

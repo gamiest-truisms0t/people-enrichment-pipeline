@@ -29,8 +29,18 @@ jobs:
         run: uv run ruff check src tests
       - name: Ruff format check
         run: uv run ruff format --check src tests
-      - name: Unit tests
-        run: uv run pytest -m "not integration"
+      - name: Unit, contract and handler tests (with coverage, floor 90 %)
+        run: |
+          uv run pytest -m "not integration" --cov=enrich_pipeline --cov-report=term-missing \
+            --cov-report=xml --cov-fail-under=90 | tee pytest.log
+          {
+            echo "### Tests and coverage"
+            echo
+            echo '```'
+            grep -E 'passed|failed|error' pytest.log | tail -1
+            grep -E '^(Name|TOTAL|src/)' pytest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   terraform:
     name: terraform fmt / validate / tflint / checkov

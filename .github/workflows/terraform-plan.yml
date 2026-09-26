@@ -43,6 +43,8 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+      - name: Validate the state machine definition (Step Functions API)
+        run: make asl-validate
       - name: Write the deployment's variables
         run: scripts/ci_tfvars.sh infra/envs/dev/ci.auto.tfvars
         env:

@@ -13,7 +13,7 @@ ENV ?= dev
 
 .PHONY: help setup lint fmt test check precommit run query login whoami clean \
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
-        e2e executions rebuild asl-validate
+        e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -49,6 +49,14 @@ run: ## Run the pipeline locally (PROVIDER=mock|pdl, SANDBOX=1 for PDL's free sa
 
 record-fixtures: ## Record synthetic PDL sandbox responses into tests/fixtures/pdl (zero credits, ~90 s)
 	$(UV) run python scripts/record_pdl_fixtures.py
+
+glue-columns: ## Regenerate infra/modules/catalog/columns.json from src/enrich_pipeline/schema.py
+	$(UV) run python scripts/glue_columns.py
+
+ROWS ?= 12
+
+athena-verify: ## Run the saved Athena queries in the pipeline workgroup and print the first ROWS rows
+	scripts/athena_verify.sh $(ROWS)
 
 query: ## Answer the brief's three questions against local Parquet with DuckDB
 	$(UV) run enrich query --out $(OUT)

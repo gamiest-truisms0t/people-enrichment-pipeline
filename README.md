@@ -55,6 +55,35 @@ public endpoint exists: functions are invoked only by Step Functions or by an IA
 principal, and the only way to start a run is to write to the landing bucket. Every
 checkov skip is listed with a reason in `.checkov.yaml` or inline next to the resource.
 
+## Querying the results in Athena
+
+Terraform registers the three curated tables in a Glue database
+(`people_enrichment_dev`) and creates the Athena workgroup
+`people-enrichment-dev-analytics`. Column definitions are generated from
+`src/enrich_pipeline/schema.py` (`make glue-columns`; a unit test fails if the committed
+file drifts), so the transform, the Parquet writer and the catalog can never disagree.
+
+- **Partition projection** over `batch_date`: Athena derives the partitions from a date
+  range instead of the catalog, so a new batch is queryable the moment its Parquet file
+  lands. No crawler, no `MSCK REPAIR`, no per-batch catalog writes.
+- **Workgroup guardrails**: results encrypted (SSE-S3) under `athena-results/` in the data
+  bucket, expired after 7 days by lifecycle rule; settings enforced for every query; a
+  per-query scan cutoff of 100 MB, which is thousands of batches of this size.
+- **Saved queries**: the brief's three questions plus an operational per-batch view are
+  saved in the workgroup, so they appear in the console's Saved queries tab.
+  `docs/athena_queries.sql` has the same SQL with date filters.
+
+```bash
+make athena-verify   # run the saved queries from the CLI and print the first rows
+```
+
+Verified on 2026-09-26 against the batches in the dev account: all four saved queries
+succeed, each scanning 5 to 16 KB in 0.6 to 1.7 seconds. Two things to know when reading
+results: `dim_person` holds one row per person **per batch**, so a person enriched in two
+uploads appears twice with two `batch_id`s (join on both `person_id` and `batch_id`, as the
+saved queries do); and the dev bucket still contains the mock-provider batches from earlier
+phases alongside the live ones, distinguishable by the `provider` column.
+
 ## Running a batch on AWS
 
 ```bash

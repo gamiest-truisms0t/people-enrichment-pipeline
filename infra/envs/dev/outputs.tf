@@ -34,6 +34,18 @@ output "event_rule_name" {
   value = module.orchestration.event_rule_name
 }
 
+output "glue_database" {
+  value = module.catalog.database_name
+}
+
+output "glue_tables" {
+  value = module.catalog.table_names
+}
+
+output "athena_workgroup" {
+  value = module.catalog.workgroup_name
+}
+
 output "function_names" {
   value = {
     validate_input = module.fn_validate_input.function_name

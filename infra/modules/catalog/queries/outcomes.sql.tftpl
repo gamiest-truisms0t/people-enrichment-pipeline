@@ -1,0 +1,11 @@
+-- 4. Operational: outcome per input row and credits per batch
+SELECT batch_date,
+       batch_id,
+       status,
+       lookup_method,
+       count(*)              AS rows,
+       sum(credits_consumed) AS credits,
+       round(avg(likelihood), 1) AS avg_likelihood
+FROM ${database}.fact_lookup
+GROUP BY 1, 2, 3, 4
+ORDER BY batch_date DESC, batch_id, status, lookup_method;

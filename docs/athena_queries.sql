@@ -71,3 +71,23 @@ WHERE e.batch_date = '2026-09-25'
 GROUP BY 1
 ORDER BY 2 DESC, 1
 LIMIT 20;
+
+-- 5. Latest snapshot per person. dim_person holds one row per person per batch, so a
+--    registrant uploaded several times appears once per upload; this keeps the most recent
+--    enrichment of each person for cross-batch questions.
+SELECT full_name,
+       current_job_title,
+       current_company_name,
+       location_country,
+       linkedin_url,
+       match_likelihood,
+       quality_flags,
+       batch_date,
+       batch_id
+FROM (
+    SELECT p.*,
+           row_number() OVER (PARTITION BY person_id ORDER BY enriched_at DESC) AS recency
+    FROM people_enrichment_dev.dim_person p
+)
+WHERE recency = 1
+ORDER BY full_name;

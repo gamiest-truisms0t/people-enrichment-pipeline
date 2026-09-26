@@ -52,6 +52,16 @@ resource "aws_s3_bucket_public_access_block" "state" {
   restrict_public_buckets = true
 }
 
+# Account-wide guard: every bucket in this account, including any created outside this
+# project, has public access blocked. The per-bucket blocks stay as defence in depth.
+# Lives here because it is account-level, applied once, like the state bucket.
+resource "aws_s3_account_public_access_block" "account" {
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 resource "aws_s3_bucket_versioning" "state" {
   bucket = aws_s3_bucket.state.id
 

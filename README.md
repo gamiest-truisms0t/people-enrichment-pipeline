@@ -62,6 +62,7 @@ make setup                              # uv sync + git hooks
 make check                              # ruff + 134 tests (unit, provider contract, mocked-AWS handlers)
 make run                                # data/sample/names.csv through the offline mock provider -> ./out
 make run INPUT=data/sample/dirty.csv    # the data guards at work: salvaged fields, rejected rows, warnings
+make validate INPUT=registrants.csv     # dry-run the input contract on a file before uploading it
 make query                              # the three questions answered from ./out with DuckDB
 ```
 
@@ -98,11 +99,11 @@ receives failures, batches completed with warnings, and alarm notifications.
 | EventBridge rule | `Object Created` under `incoming/` → `StartExecution`; undeliverable events go to a dead-letter queue |
 | Step Functions Standard | `ValidateInput` → `EnrichRows` (inline Map, `MaxConcurrency` 1) → `BuildCurated` → summarise; failures and warnings to SNS |
 | 3 Lambda functions (Python 3.13, arm64) | `validate-input` (guards, parsing), `enrich` (matching ladder, cache, budget, provider call), `build-curated` (reconciliation, output guards, Parquet) |
-| DynamoDB state table | idempotency cache `lookup#…` (TTL 90 days), monthly and per-batch credit counters `budget#…`, batch claims `batch#…` (one execution per upload); provisioned 5/5 |
+| DynamoDB state table | idempotency cache `lookup#…` (TTL 90 days), monthly and per-batch credit counters `budget#…`, batch claims `batch#…` (one execution per upload), the provider circuit breaker `breaker#…`; provisioned 5/5 |
 | SSM SecureString | the provider API key; Terraform creates a placeholder and ignores the value |
 | S3 data bucket | `input/`, `raw/` (90-day TTL), `results/`, `curated/<table>/batch_date=…/<batch_id>.parquet`, `manifests/`, `quarantine/` (rejected uploads and rejected-row exports, 90-day TTL), `athena-results/` (7-day TTL) |
-| Glue database + Athena workgroup | three tables generated from `schema.py` with partition projection; encrypted results, 100 MB scan cutoff, five saved queries |
-| SNS topic, CloudWatch, AWS Budget | email alerts; eight alarms; $5 monthly budget |
+| Glue database + Athena workgroup | four tables generated from `schema.py` with partition projection, the `person_current` view; encrypted results, 100 MB scan cutoff, six saved queries |
+| SNS topic, CloudWatch, AWS Budget | email alerts; nine alarms; one dashboard; $5 monthly budget and a $1 cost-anomaly subscription; IAM Access Analyzer findings |
 
 **Why these choices** (full reasoning in the ADRs):
 
@@ -132,6 +133,11 @@ Glue tables (`make glue-columns`, drift fails a test) all derive from it.
 | `dim_person` | matched person per batch | `person_id`, `batch_id`, `full_name`, `current_job_title`, `current_company_name`, `location_country`, `linkedin_url`, `match_likelihood`, `lookup_method`, `quality_flags`, input lineage (`input_first_name`, …) |
 | `fact_employment` | position held | `person_id`, `batch_id`, `sequence_no` (0 = current), `company_name`, `company_industry`, `title_name`, `title_role`, `title_levels`, `start_date`, `end_date`, `is_current` |
 | `fact_lookup` | input row, valid or not | `batch_id`, `row_number`, `status`, `lookup_method`, `person_id`, `likelihood`, `http_status`, `error_message`, `credits_consumed`, `raw_ref`, `quality_flags` |
+| `fact_batch_quality` | batch build | `batch_id`, `rows_valid`, `rows_invalid`, per-status counts, `match_rate`, `flagged_matches`, `warning_count`, `warnings`, `credits_spent`, `persons`, `built_at` |
+
+Every row also carries `pipeline_version`, the package version that produced it, so a
+rebuild after a transform change (`make rebuild-all`, no provider calls) is visible in the
+data.
 
 The saved Athena queries (also in [docs/athena_queries.sql](docs/athena_queries.sql)):
 
@@ -157,7 +163,8 @@ JOIN people_enrichment_dev.dim_person p
 ORDER BY p.full_name, e.sequence_no;
 ```
 
-Query 4 is the operational view (status, method, credits per batch) and query 5 the
+Query 4 is the operational view (status, method, credits per batch), query 6 trends
+`fact_batch_quality` over time, and query 5 is the
 **latest snapshot per person**, because `dim_person` is a per-batch snapshot: a person
 uploaded twice appears once per batch. The same logic is also a Glue view,
 **`person_current`**, created by Terraform, so `SELECT * FROM person_current` answers
@@ -208,6 +215,7 @@ titles (for example Nasdaq, executive vice president of corporate strategy, VP l
 |---|---|
 | Rate limit (HTTP 429) | The enrich function reads `x-ratelimit-reset` (a UTC timestamp at this provider) or `Retry-After`, sleeps until the window reopens (capped at 20 s), and retries up to three attempts inside its 90 s timeout. `MaxConcurrency` 1 keeps even an all-name-only batch under the 10-per-minute identify limit. |
 | Transient 5xx or network errors | Exponential backoff inside the function; the Map retries Lambda service errors (2 s, ×2, jitter, 3 attempts). Every call is idempotent through the cache key, so a retry never double-spends. |
+| Provider outage (a run of 5xx or timeouts) | A circuit breaker shared across invocations opens after `breaker_threshold` (3) consecutive failures for `breaker_cooldown_seconds` (300); rows in that window are `provider_unavailable` (not cached, so a later run or `make redrive` retries them) and the batch's warnings email says so. Any success closes it. |
 | Credit exhaustion | Per-pool monthly counters in DynamoDB (`enrich` 70, `identify` 2, below the plan's 100 and 5) are checked before every billable call; rows past a ceiling are `budget_deferred` and the batch still completes. An HTTP 402 marks that pool exhausted for the month so the remaining rows skip the call. Alarms fire at 90 % of each ceiling. |
 | Duplicate names, re-uploaded files | Normalised lookup key (NFKC, casefold, punctuation and whitespace folded, plus the identifiers and thresholds used) → DynamoDB cache with a 90-day TTL; a hit costs nothing and reuses the stored profile. Proof on 2026-09-26: first upload 4 matched, 1 not found, 1 invalid, **4 credits**; second upload of the same file 5 `cached`, 1 invalid, **0 credits**, identical persons and positions. |
 | Duplicate trigger events | S3 notifications and EventBridge deliver at least once. The batch id is derived from the object version and the first execution to claim it in DynamoDB (conditional write) owns it; a second delivery ends in `DuplicateIgnored` with no rows enriched. Verified by starting a second execution with an identical input. |
@@ -220,10 +228,14 @@ titles (for example Nasdaq, executive vice president of corporate strategy, VP l
 | Timeouts | `validate-input` 60 s, `enrich` 90 s (room for two rate-limit waits), `build-curated` 300 s; the state machine 1 hour. |
 | Cost leaks | Log retention 14 days; lifecycle rules on `raw/`, `athena-results/` and the landing bucket; provisioned DynamoDB inside the free allowance; an AWS Budget at $5 with alerts at 20 % actual and 100 % forecast; `make destroy` verified. |
 
-**Alarms** (eight, inside the always-free ten): `<function>-errors` ×3, `pipeline-executions-failed`,
-`pipeline-executions-timed-out`, `enrich-credits-90pct`, `identify-credits-90pct`,
-`dead-letter-queue-not-empty`. The credit alarms watch month-to-date counters the enrich
-function publishes after every row; they keep their state between batches.
+**Alarms** (nine, inside the always-free ten): `<function>-errors` ×3, `pipeline-executions-failed`,
+`pipeline-executions-timed-out`, `pipeline-execution-time` (an execution slower than
+`max_execution_seconds`, the upload-to-curated freshness objective), `enrich-credits-90pct`,
+`identify-credits-90pct`, `dead-letter-queue-not-empty`. The credit alarms watch
+month-to-date counters the enrich function publishes after every row; they keep their state
+between batches. A CloudWatch dashboard (`people-enrichment-dev-pipeline`) shows executions,
+execution time against the objective, rows, credits against the ceilings, Lambda errors and
+duration, and the dead-letter queue.
 
 ## Data guards
 
@@ -234,12 +246,16 @@ under Phase 6b in PLAN.md).
 | Layer | What is checked | What happens |
 |---|---|---|
 | **File** | size (`max_input_bytes`, 5 MB), encoding (UTF-8, UTF-16 with BOM; anything else read as Windows-1252), delimiter (`,` `;` tab `\|`), required header, extra or duplicate columns | recoverable oddities are accepted and recorded as warnings; a file with no usable header, no rows, only rejected rows, or more than `max_invalid_fraction` (50 %) rejected rows **fails the batch** with the reason in the notification email, because it almost certainly is not the layout the header claims |
-| **Row** | names: non-empty, no digits, has letters, not an email address, not a placeholder (`test`, `n/a`, `unknown`, a repeated header row…), ≤ 100 chars; email shape; LinkedIn URL shape; company/location placeholders (`self-employed`, `student`, `n/a`…) and length | a bad **name** rejects the row as `invalid_input` with the field and reason (flag `input.rejected`); a bad **optional** field is dropped and the row continues with a note (`input.email_invalid`, `input.company_placeholder`, …) so a person can still be found by name |
+| **Row** | names: non-empty, no digits, has letters, not an email address, not a placeholder (`test`, `n/a`, `unknown`, a repeated header row…), ≤ 100 chars; email shape; LinkedIn URL shape; company/location placeholders (`self-employed`, `student`, `n/a`…) and length; an optional `consent` column (`opt_in`, `marketing_consent`, …) | a bad **name** rejects the row as `invalid_input` with the field and reason (flag `input.rejected`); a bad **optional** field is dropped and the row continues with a note (`input.email_invalid`, `input.company_placeholder`, …) so a person can still be found by name; an explicit consent **no** rejects the row before any provider call, and `require_consent` rejects a missing answer too |
 | **Match** | the matched profile's surname vs the input, missing name or current job, no employment history, likelihood sitting on the threshold, malformed or reversed employment dates | the match is kept and flagged (`match.name_mismatch`, `match.sparse_profile`, `match.likelihood_at_floor`, …) in `quality_flags` on `dim_person` and `fact_lookup`, so analysts can filter or review |
 | **Output** | one `fact_lookup` row per input row, unique keys, no orphan employment rows, Parquet row counts and columns re-read after writing | the curated step fails rather than publish inconsistent tables |
 | **Batch** | match rate below `min_match_rate` (20 %), ≥ 20 % rows rejected, flagged matches, unrecorded rows, decoding or delimiter fallbacks | listed under `quality` in the batch manifest and in the "completed with warnings" email |
 
 The thresholds are Terraform variables (and `enrich run` flags); the field rules are fixed.
+The whole contract is published as [docs/input-contract.json](docs/input-contract.json),
+generated from the code (`make input-contract`, drift fails a test), and
+`make validate INPUT=file.csv` is the same contract as a dry run: it reports what would be
+accepted, salvaged and rejected without enriching or writing anything.
 Verified live on 2026-09-26 at zero credits: a file mixing five cached names with four
 junk rows completed with 5 `cached`, 4 `invalid_input` and two warnings; a file of nothing
 but junk failed at validation with
@@ -258,6 +274,13 @@ on 2026-09-26:
   denies non-TLS requests and is SSE-S3 encrypted; the account also carries an
   **account-level S3 Block Public Access** (bootstrap stack) so buckets created outside
   this project are covered too.
+- The raw layer is append-only: no pipeline role can delete under `raw/`, and the data
+  bucket policy denies deletes there to every other principal except the account's IAM
+  users and the CI apply role (so `terraform destroy` still works).
+- IAM Access Analyzer's external-access analyzer watches the account's resources for
+  public or cross-account access; active findings reach the alerts topic through
+  EventBridge. The three GitHub OIDC roles are external access by design, so an archive
+  rule keeps their findings out of the alerts.
 - One IAM role per principal (three functions, the state machine, the EventBridge rule),
   scoped to the exact prefixes, table, parameter, functions and topic it touches
   ([docs/architecture.md](docs/architecture.md#iam-scope-per-principal)). `make iam-check`
@@ -288,7 +311,8 @@ on 2026-09-26:
 |---|---|
 | **$0 within always-free allowances** | Lambda, Step Functions Standard (4,000 transitions a month), DynamoDB provisioned 5/5, EventBridge, SNS, SSM, Glue Data Catalog, X-Ray, ten CloudWatch alarms, AWS Budgets |
 | **Cents, covered by credits** | S3 (a few MB of Parquet and JSON), Athena (queries here scan KB but bill the 10 MB minimum, about $0.00005 each) |
-| **About $1.50 a month, covered by credits** | 15 custom CloudWatch metrics against 10 always-free; the per-status counters could be folded into log-based metrics if that mattered |
+| **$0: custom metrics trimmed to nine** | ten are always free; cold-start and derivable counters were removed (they stop counting the month after), everything else lives in `fact_lookup` and `fact_batch_quality` |
+| **$0: cost guards** | the $5 AWS Budget, a $1 daily Cost Anomaly Detection subscription on the default monitor AWS created for the account, IAM Access Analyzer (external access) |
 | **Provider** | 100 enrichment + 5 identify credits a month on the free plan; the pipeline caps itself at 70 + 2. Month to date after all runs: about 25 enrichment and 3 identify credits used |
 | **Deliberately avoided** | NAT gateway (~$33 a month idle), customer-managed KMS keys, Secrets Manager, Glue crawlers and jobs, on-demand DynamoDB, unlimited log retention, Express Workflows |
 | **At scale** | Costs grow with rows: provider credits first, then Lambda duration, S3 requests and Athena scans; Step Functions transitions ($0.025 per 1,000) become the largest AWS line above ~40 batches a month |
@@ -316,7 +340,7 @@ scripts/                                         e2e, smoke, idempotency proof, 
 - **Tests.** `make check` runs ruff and pytest: pure-logic unit tests, provider contract
   tests against recorded sandbox and live fixtures (no real PII), and handler tests
   against moto-mocked S3 and DynamoDB. `make e2e`, `make idempotency-proof`,
-  `make iam-check` and `make athena-verify` exercise the deployed stack.
+  `make iam-check`, `make athena-verify` and `make rebuild-all` exercise the deployed stack.
 - **CI** (GitHub Actions, pinned to commit SHAs): lint + tests, `terraform fmt`/`validate`,
   tflint, checkov, and a gitleaks scan. `main` is protected: all three checks must pass and
   the branch must be current; no force pushes. Dependabot watches actions, `uv.lock` and
@@ -333,8 +357,9 @@ scripts/                                         e2e, smoke, idempotency proof, 
 - **Branching and versions.** Work happens on `feat/*` branches merged by PR after a
   code review; commits follow Conventional Commits; milestones are tagged (`v0.0.1` local
   pipeline, `v0.1.0` end to end with the mock, `v0.2.0` live provider, `v0.3.0` Athena,
-  `v0.4.0` hardening, `v1.0.0` submission). Changes after `v1.0.0` continue on `main` and
-  are tagged `v1.x`.
+  `v0.4.0` hardening, `v1.0.0` submission, `v1.1.0` production practices, `v1.2.0` the $0
+  pass). Changes after `v1.0.0` continue on `main` and are tagged `v1.x`; the package
+  version is stamped on every curated row as `pipeline_version`.
 - **Reproducibility.** On 2026-09-26 the dev stack was destroyed and re-created from
   `make apply`; a follow-up plan shows no drift, and the pipeline ran end to end on the
   fresh stack.

@@ -188,3 +188,33 @@ variable "max_concurrency" {
   type        = number
   default     = 1
 }
+
+variable "breaker_threshold" {
+  description = "Consecutive provider 5xx/transport failures that open the circuit breaker."
+  type        = number
+  default     = 3
+}
+
+variable "breaker_cooldown_seconds" {
+  description = "How long the circuit breaker stays open; rows in that window are provider_unavailable."
+  type        = number
+  default     = 300
+}
+
+variable "require_consent" {
+  description = "Reject rows whose consent column is missing or not a clear yes (an explicit no is always rejected)."
+  type        = bool
+  default     = false
+}
+
+variable "max_execution_seconds" {
+  description = "Freshness objective: alarm when an execution takes longer than this from upload to curated tables."
+  type        = number
+  default     = 600
+}
+
+variable "cost_anomaly_monitor_arn" {
+  description = "AWS-created default cost anomaly monitor (new accounts get one); a $1 daily email subscription is attached to it. Empty disables."
+  type        = string
+  default     = "arn:aws:ce::740255824497:anomalymonitor/e07e67e3-49a5-409c-9611-f03fb6bdee2d"
+}

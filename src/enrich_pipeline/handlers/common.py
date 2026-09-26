@@ -13,14 +13,15 @@ from enrich_pipeline.enricher import EnrichConfig
 from enrich_pipeline.guards import GuardConfig
 from enrich_pipeline.models import LookupStatus
 
+# CloudWatch custom metrics cost $0.30 a month each beyond the ten that are always free,
+# so the pipeline publishes exactly the ones an alarm or the dashboard needs (nine, with
+# the two credit gauges, CreditsSpent, RowsInvalid and PersonsCurated). Every other
+# count lives in fact_lookup and fact_batch_quality, queryable in Athena at no cost.
 METRIC_BY_STATUS: dict[LookupStatus, str] = {
     LookupStatus.MATCHED: "Matched",
-    LookupStatus.NOT_FOUND: "NotFound",
-    LookupStatus.AMBIGUOUS: "Ambiguous",
-    LookupStatus.CACHED: "Cached",
     LookupStatus.BUDGET_DEFERRED: "BudgetDeferred",
-    LookupStatus.INVALID_INPUT: "InvalidInput",
     LookupStatus.ERROR: "Error",
+    LookupStatus.PROVIDER_UNAVAILABLE: "ProviderUnavailable",
 }
 
 
@@ -53,12 +54,21 @@ class Settings:
     min_match_rate: float = GuardConfig.min_match_rate
     # Credits one batch may spend in total; None disables the cap.
     max_credits_per_batch: int | None = None
+    # Provider circuit breaker and the consent rule.
+    breaker_threshold: int = EnrichConfig.breaker_threshold
+    breaker_cooldown_seconds: int = EnrichConfig.breaker_cooldown_seconds
+    require_consent: bool = GuardConfig.require_consent
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         e = env if env is not None else os.environ
         return cls(
             max_credits_per_batch=_int_or_none(e.get("MAX_CREDITS_PER_BATCH")),
+            breaker_threshold=int(e.get("BREAKER_THRESHOLD", cls.breaker_threshold)),
+            breaker_cooldown_seconds=int(
+                e.get("BREAKER_COOLDOWN_SECONDS", cls.breaker_cooldown_seconds)
+            ),
+            require_consent=e.get("REQUIRE_CONSENT", "").strip().lower() in ("1", "true", "yes"),
             max_input_bytes=int(e.get("MAX_INPUT_BYTES", cls.max_input_bytes)),
             max_invalid_fraction=float(e.get("MAX_INVALID_FRACTION", cls.max_invalid_fraction)),
             min_match_rate=float(e.get("MIN_MATCH_RATE", cls.min_match_rate)),
@@ -90,6 +100,8 @@ class Settings:
             identify_min_margin=self.identify_min_margin,
             enrich_min_likelihood=self.enrich_min_likelihood,
             location_hint=self.location_hint,
+            breaker_threshold=self.breaker_threshold,
+            breaker_cooldown_seconds=self.breaker_cooldown_seconds,
             **overrides,
         )
 
@@ -98,6 +110,7 @@ class Settings:
             max_input_bytes=self.max_input_bytes,
             max_invalid_fraction=self.max_invalid_fraction,
             min_match_rate=self.min_match_rate,
+            require_consent=self.require_consent,
         )
 
 

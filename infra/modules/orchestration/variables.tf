@@ -44,3 +44,9 @@ variable "log_execution_data" {
   type        = bool
   default     = false
 }
+
+variable "max_execution_seconds" {
+  description = "Alarm when an execution takes longer than this (the upload-to-curated freshness objective)."
+  type        = number
+  default     = 600
+}

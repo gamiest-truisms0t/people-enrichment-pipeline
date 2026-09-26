@@ -36,7 +36,12 @@ def test_run_batch_on_the_sample_file(tmp_path: Path) -> None:
 
     manifest = json.loads(Path(summary.manifest).read_text(encoding="utf-8"))
     assert manifest["batch_id"] == "test-batch"
-    assert set(manifest["files"]) == {"dim_person", "fact_employment", "fact_lookup"}
+    assert set(manifest["files"]) == {
+        "dim_person",
+        "fact_employment",
+        "fact_lookup",
+        "fact_batch_quality",
+    }
 
     raw_files = sorted((tmp_path / "raw").rglob("*.json"))
     assert len(raw_files) == 4  # one per provider round-trip; cached and invalid rows write none
@@ -137,3 +142,20 @@ def test_cli_rejects_a_file_that_is_mostly_junk(
     assert code == 2
     assert "input rejected: 6 of 8 rows rejected (75%)" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()  # nothing written for a rejected file
+
+
+def test_cli_validate_is_a_dry_run_of_the_input_guards(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["validate", "--input", str(DIRTY)]) == 0
+    out = capsys.readouterr().out
+    assert "ACCEPTED" in out and "rows: 5 valid, 4 rejected" in out
+    assert "row 6: first_name: contains digits; last_name: contains digits" in out
+    assert "row 1: input.email_invalid (field dropped, row kept)" in out
+    assert not (tmp_path / "out").exists()  # nothing is written by a dry run
+
+    junk = tmp_path / "junk.csv"
+    junk.write_text("first_name,last_name\n" + "test,test\n" * 6 + "John,Doe\n" * 2)
+    assert main(["validate", "--input", str(junk), "--json"]) == 2
+    report = json.loads(capsys.readouterr().out)
+    assert report["accepted"] is False and "6 of 8 rows rejected" in report["reason"]

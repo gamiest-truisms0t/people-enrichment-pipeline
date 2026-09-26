@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from enrich_pipeline.guards import (
     GuardConfig,
     InputError,
+    consent_problem,
     decode_text,
     file_problem,
     sniff_delimiter,
@@ -29,8 +30,9 @@ from enrich_pipeline.normalize import normalize_text
 
 __all__ = ["InputError", "ParsedInput", "normalize_header", "parse_csv"]
 
+DEFAULT_MAX_ROWS = 500  # the inline Step Functions Map carries the rows; MAX_ROWS in Lambda
 REQUIRED_COLUMNS: tuple[str, ...] = ("first_name", "last_name")
-OPTIONAL_COLUMNS: tuple[str, ...] = ("email", "company", "location", "linkedin_url")
+OPTIONAL_COLUMNS: tuple[str, ...] = ("email", "company", "location", "linkedin_url", "consent")
 
 HEADER_ALIASES: dict[str, frozenset[str]] = {
     "first_name": frozenset({"first_name", "firstname", "first", "given_name", "given"}),
@@ -39,6 +41,17 @@ HEADER_ALIASES: dict[str, frozenset[str]] = {
     "company": frozenset({"company", "company_name", "organisation", "organization", "employer"}),
     "location": frozenset({"location", "city", "country", "region"}),
     "linkedin_url": frozenset({"linkedin_url", "linkedin", "linkedin_profile", "profile_url"}),
+    "consent": frozenset(
+        {
+            "consent",
+            "opt_in",
+            "optin",
+            "marketing_consent",
+            "consent_to_contact",
+            "gdpr_consent",
+            "permission",
+        }
+    ),
 }
 
 
@@ -164,11 +177,18 @@ def parse_csv(
         if max_rows is not None and parsed.total >= max_rows:
             raise InputError(f"input has more than {max_rows} rows; split the file")
         try:
-            parsed.rows.append(InputRow(row_number=row_number, **data))
+            row = InputRow(row_number=row_number, **data)
         except ValidationError as exc:
             parsed.invalid.append(
                 InvalidRow(row_number=row_number, reason=_describe(exc), raw=data)
             )
+            continue
+        # Consent is decided before any provider call: an explicit "no" never leaves the
+        # file, and with require_consent a missing answer is a rejection too.
+        if problem := consent_problem(row.consent, require_consent=config.require_consent):
+            parsed.invalid.append(InvalidRow(row_number=row_number, reason=problem, raw=data))
+            continue
+        parsed.rows.append(row)
 
     problem = file_problem(
         total=parsed.total, invalid_reasons=[i.reason for i in parsed.invalid], config=config

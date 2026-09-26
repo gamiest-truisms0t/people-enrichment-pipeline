@@ -17,13 +17,14 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from enrich_pipeline import __version__
 from enrich_pipeline.enricher import CreditBudget, EnrichConfig, Enricher, InMemoryCache
 from enrich_pipeline.guards import GuardConfig, batch_quality, check_tables
 from enrich_pipeline.ingest import parse_csv
 from enrich_pipeline.parquet import write_tables
 from enrich_pipeline.providers.base import Provider
 from enrich_pipeline.raw_store import LocalRawStore
-from enrich_pipeline.transform import build_tables, quality_flags
+from enrich_pipeline.transform import build_tables, quality_flags, quality_row
 
 
 @dataclass
@@ -31,6 +32,7 @@ class RunSummary:
     batch_id: str
     batch_date: str
     provider: str
+    pipeline_version: str
     input_file: str
     out_dir: str
     rows_valid: int
@@ -99,16 +101,29 @@ def run_batch(
         parse_warnings=parsed.warnings,
         config=guards,
     )
-    files = write_tables(tables, out_dir=out_dir, batch_date=batch_date, batch_id=batch_id)
-
     counts = Counter(r.status.value for r in results)
     if parsed.invalid:
         counts["invalid_input"] += len(parsed.invalid)
+    tables["fact_batch_quality"] = [
+        quality_row(
+            batch_id=batch_id,
+            provider=provider.name,
+            quality=quality.to_dict(),
+            status_counts=dict(counts),
+            rows_unrecorded=0,
+            credits_spent=budget.total_spent,
+            persons=len(tables["dim_person"]),
+            employment_rows=len(tables["fact_employment"]),
+            built_at=started,
+        )
+    ]
+    files = write_tables(tables, out_dir=out_dir, batch_date=batch_date, batch_id=batch_id)
 
     summary = RunSummary(
         batch_id=batch_id,
         batch_date=batch_date,
         provider=provider.name,
+        pipeline_version=__version__,
         input_file=str(input_path),
         out_dir=str(out_dir),
         rows_valid=len(parsed.rows),

@@ -109,6 +109,42 @@ ORG_PLACEHOLDERS: frozenset[str] = frozenset(
 )
 
 
+# Spellings of consent answers, compared after placeholder_key(); anything else is
+# unrecognised and recorded as a note.
+CONSENT_YES: frozenset[str] = frozenset(
+    {
+        "yes",
+        "y",
+        "true",
+        "1",
+        "opt in",
+        "optin",
+        "opted in",
+        "agreed",
+        "agree",
+        "granted",
+        "consented",
+        "ok",
+    }
+)
+CONSENT_NO: frozenset[str] = frozenset(
+    {
+        "no",
+        "n",
+        "false",
+        "0",
+        "opt out",
+        "optout",
+        "opted out",
+        "declined",
+        "decline",
+        "withheld",
+        "refused",
+        "none",
+    }
+)
+
+
 class InputError(ValueError):
     """The file as a whole cannot be processed (bad header, not text, too big, all junk)."""
 
@@ -130,6 +166,9 @@ class GuardConfig:
     min_rows_for_match_rate: int = 5
     # Above this share of rejected rows (but below the abort threshold) the batch warns.
     warn_invalid_fraction: float = 0.2
+    # Reject rows whose consent is not recorded as given (a consent column is optional;
+    # an explicit "no" is always rejected).
+    require_consent: bool = False
 
 
 # --------------------------------------------------------------------------- file layer
@@ -178,12 +217,15 @@ def file_problem(*, total: int, invalid_reasons: Sequence[str], config: GuardCon
         return (
             f"no valid rows: all {total} data rows were rejected ({top_reasons(invalid_reasons)})"
         )
-    fraction = invalid / total
+    # Opt-outs are legitimate rejections, not a sign of a wrong layout, so they do not
+    # count towards the "the columns are not what the header says" rule.
+    layout_reasons = [r for r in invalid_reasons if not r.startswith("consent:")]
+    fraction = len(layout_reasons) / total
     if total >= config.min_rows_for_fraction and fraction > config.max_invalid_fraction:
         return (
-            f"{invalid} of {total} rows rejected ({fraction:.0%}), above the "
+            f"{len(layout_reasons)} of {total} rows rejected ({fraction:.0%}), above the "
             f"{config.max_invalid_fraction:.0%} limit; the columns probably do not hold what "
-            f"the header says ({top_reasons(invalid_reasons)})"
+            f"the header says ({top_reasons(layout_reasons)})"
         )
     return None
 
@@ -247,7 +289,7 @@ def clean_input_data(data: Mapping[str, Any]) -> dict[str, Any]:
         if isinstance(value, str):
             row[key] = strip_invisible(value).strip()
 
-    for key in ("email", "company", "location", "linkedin_url"):
+    for key in ("email", "company", "location", "linkedin_url", "consent"):
         if key in row and (row[key] is None or row[key] == ""):
             row[key] = None
 
@@ -278,8 +320,28 @@ def clean_input_data(data: Mapping[str, Any]) -> dict[str, Any]:
             row[key] = None
             notes.append(f"input.{key}_placeholder")
 
+    consent = row.get("consent")
+    if isinstance(consent, str):
+        answer = placeholder_key(consent)
+        if answer in CONSENT_YES:
+            row["consent"] = True
+        elif answer in CONSENT_NO:
+            row["consent"] = False
+        else:
+            row["consent"] = None
+            notes.append("input.consent_unrecognised")
+
     row["notes"] = list(dict.fromkeys(notes))
     return row
+
+
+def consent_problem(consent: bool | None, *, require_consent: bool) -> str | None:
+    """Why a row may not be enriched on consent grounds, or None."""
+    if consent is False:
+        return "consent: withheld"
+    if consent is None and require_consent:
+        return "consent: not recorded (require_consent is on)"
+    return None
 
 
 # --------------------------------------------------------------------------- match layer
@@ -438,6 +500,12 @@ def batch_quality(
         warnings.append(
             f"unrecorded_rows: {unrecorded_rows} rows produced no result and were recorded "
             "as errors"
+        )
+    unavailable = sum(1 for s in statuses if s == "provider_unavailable")
+    if unavailable:
+        warnings.append(
+            f"provider_unavailable: {unavailable} rows were skipped while the provider circuit "
+            "breaker was open; re-upload or redrive the file once the provider recovers"
         )
     return QualityReport(
         rows_valid=rows_valid,

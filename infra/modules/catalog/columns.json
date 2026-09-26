@@ -109,6 +109,11 @@
         "comment": "input.* notes and match.* doubts (data guards)"
       },
       {
+        "name": "pipeline_version",
+        "type": "string",
+        "comment": "enrich_pipeline package version that produced the row"
+      },
+      {
         "name": "enriched_at",
         "type": "timestamp",
         "comment": ""
@@ -204,6 +209,11 @@
         "name": "is_current",
         "type": "boolean",
         "comment": ""
+      },
+      {
+        "name": "pipeline_version",
+        "type": "string",
+        "comment": "enrich_pipeline package version that produced the row"
       }
     ],
     "fact_lookup": [
@@ -303,7 +313,119 @@
         "comment": "input.* notes and match.* doubts (data guards)"
       },
       {
+        "name": "pipeline_version",
+        "type": "string",
+        "comment": "enrich_pipeline package version that produced the row"
+      },
+      {
         "name": "requested_at",
+        "type": "timestamp",
+        "comment": ""
+      }
+    ],
+    "fact_batch_quality": [
+      {
+        "name": "batch_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "provider",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "pipeline_version",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "rows_valid",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "rows_invalid",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "rows_unrecorded",
+        "type": "int",
+        "comment": "rows whose enrich invocation left no result"
+      },
+      {
+        "name": "matched",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "cached",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "not_found",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "ambiguous",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "budget_deferred",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "provider_unavailable",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "error",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "match_rate",
+        "type": "double",
+        "comment": "(matched + cached) / rows_valid"
+      },
+      {
+        "name": "flagged_matches",
+        "type": "int",
+        "comment": "matched rows carrying match.* quality flags"
+      },
+      {
+        "name": "warning_count",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "warnings",
+        "type": "array<string>",
+        "comment": ""
+      },
+      {
+        "name": "credits_spent",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "persons",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "employment_rows",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "built_at",
         "type": "timestamp",
         "comment": ""
       }

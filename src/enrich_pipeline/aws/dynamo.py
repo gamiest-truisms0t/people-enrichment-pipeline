@@ -235,3 +235,76 @@ class BatchRegistry:
                 ConditionExpression="execution_id = :e",
                 ExpressionAttributeValues={":e": execution_id},
             )
+
+
+class DynamoBreaker:
+    """Provider circuit breaker shared by every enrich invocation (see breaker.py).
+
+    One item per provider (`breaker#<provider>`): `failures` counts consecutive failures,
+    `open_until` is an epoch second while the breaker is open. Success resets the counter
+    with a conditional write, so the healthy path never changes the item (the failed
+    condition still costs one write unit; the table has capacity to spare).
+    """
+
+    def __init__(
+        self,
+        table: Any,
+        *,
+        provider: str,
+        threshold: int = 3,
+        cooldown_seconds: int = 300,
+        clock: Any = None,
+    ) -> None:
+        self.table = table
+        self.provider = provider
+        self.threshold = max(1, threshold)
+        self.cooldown_seconds = max(0, cooldown_seconds)
+        self.clock = clock or (lambda: datetime.now(UTC))
+
+    @property
+    def pk(self) -> str:
+        return f"breaker#{self.provider}"
+
+    def open_until(self) -> datetime | None:
+        item = self.table.get_item(Key={"pk": self.pk}, ConsistentRead=True).get("Item")
+        until = int(item.get("open_until", 0)) if item else 0
+        now = int(self.clock().timestamp())
+        return datetime.fromtimestamp(until, tz=UTC) if until > now else None
+
+    def record_failure(self) -> None:
+        now = int(self.clock().timestamp())
+        response = self.table.update_item(
+            Key={"pk": self.pk},
+            UpdateExpression=(
+                "ADD failures :one SET provider = :p, updated_at = :t, "
+                "#ttl = if_not_exists(#ttl, :ttl)"
+            ),
+            ExpressionAttributeNames={"#ttl": "ttl"},
+            ExpressionAttributeValues={
+                ":one": 1,
+                ":p": self.provider,
+                ":t": _now_iso(),
+                ":ttl": now + 7 * DAY,
+            },
+            ReturnValues="UPDATED_NEW",
+        )
+        if int(response["Attributes"]["failures"]) >= self.threshold:
+            self.table.update_item(
+                Key={"pk": self.pk},
+                UpdateExpression="SET open_until = :u, failures = :zero, updated_at = :t",
+                ExpressionAttributeValues={
+                    ":u": now + self.cooldown_seconds,
+                    ":zero": 0,
+                    ":t": _now_iso(),
+                },
+            )
+
+    def record_success(self) -> None:
+        # Only change the item when there is something to reset.
+        with contextlib.suppress(self.table.meta.client.exceptions.ConditionalCheckFailedException):
+            self.table.update_item(
+                Key={"pk": self.pk},
+                UpdateExpression="SET failures = :zero, open_until = :zero, updated_at = :t",
+                ConditionExpression="failures > :zero OR open_until > :zero",
+                ExpressionAttributeValues={":zero": 0, ":t": _now_iso()},
+            )

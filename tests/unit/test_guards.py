@@ -338,3 +338,17 @@ def test_check_tables_rejects_inconsistencies(mutate: object, message: str) -> N
     mutate(tables)  # type: ignore[operator]
     with pytest.raises(OutputCheckError, match=message):
         check_tables(tables, expected_lookup_rows=2)
+
+
+def test_opt_outs_do_not_count_as_a_layout_problem() -> None:
+    config = GuardConfig(max_invalid_fraction=0.5, min_rows_for_fraction=5)
+    reasons = ["consent: withheld"] * 7 + ["first_name: contains digits"]
+    # Seven of ten rows opted out: a valid file with few people to enrich, not a wrong layout.
+    assert file_problem(total=10, invalid_reasons=reasons, config=config) is None
+    # Everyone opted out: still nothing to do, and the message says why.
+    all_out = file_problem(total=3, invalid_reasons=["consent: withheld"] * 3, config=config)
+    assert all_out is not None and "consent: withheld x3" in all_out
+    # Layout problems are counted as before, with opt-outs left out of the fraction.
+    layout = ["first_name: placeholder value 'test'"] * 6 + ["consent: withheld"] * 2
+    problem = file_problem(total=10, invalid_reasons=layout, config=config)
+    assert problem is not None and problem.startswith("6 of 10 rows rejected (60%)")

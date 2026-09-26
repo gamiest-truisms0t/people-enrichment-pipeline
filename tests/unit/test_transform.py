@@ -25,7 +25,7 @@ def test_rows_have_exactly_the_schema_columns() -> None:
     tables = build_tables(_results(), batch_id="b1")
     for name, rows in tables.items():
         columns = [c.name for c in TABLES[name]]
-        assert rows, name
+        assert rows or name == "fact_batch_quality", name  # the quality row is added later
         for row in rows:
             assert list(row) == columns
 
@@ -89,3 +89,43 @@ def test_cached_hits_still_populate_a_new_batch() -> None:
     assert len(tables["fact_employment"]) == 3
     assert tables["fact_lookup"][0]["status"] == "cached"
     assert tables["fact_lookup"][0]["credits_consumed"] == 0
+
+
+def test_rows_carry_the_pipeline_version_and_quality_row_matches_the_schema() -> None:
+    from enrich_pipeline import __version__
+    from enrich_pipeline.transform import quality_row
+
+    tables = build_tables(_results(), batch_id="b1", version="9.9.9")
+    assert {
+        r["pipeline_version"]
+        for t in ("dim_person", "fact_employment", "fact_lookup")
+        for r in tables[t]
+    } == {"9.9.9"}
+    assert tables["fact_batch_quality"] == []
+    row = quality_row(
+        batch_id="b1",
+        provider="mock",
+        quality={
+            "rows_valid": 3,
+            "rows_invalid": 1,
+            "match_rate": 1 / 3,
+            "flagged_matches": 0,
+            "warning_count": 1,
+            "warnings": ["high_invalid_rate: 1 of 4 rows rejected (25%)"],
+        },
+        status_counts={"matched": 1, "ambiguous": 1, "cached": 1, "invalid_input": 1},
+        rows_unrecorded=0,
+        credits_spent=2,
+        persons=1,
+        employment_rows=3,
+        built_at=_clock(),
+    )
+    assert list(row) == [c.name for c in TABLES["fact_batch_quality"]]
+    assert (row["matched"], row["cached"], row["not_found"], row["pipeline_version"]) == (
+        1,
+        1,
+        0,
+        __version__,
+    )
+    assert row["warnings"] == ["high_invalid_rate: 1 of 4 rows rejected (25%)"]
+    assert row["built_at"].tzinfo is None

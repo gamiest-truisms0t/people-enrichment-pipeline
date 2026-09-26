@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from enrich_pipeline import __version__
 from enrich_pipeline.handlers import build_curated, common, enrich, validate_input
 from enrich_pipeline.ingest import InputError
 
@@ -177,3 +178,65 @@ def test_rejected_rows_are_exported_for_the_source_owner(
     clean = _validate(SAMPLE_KEY, lambda_context)
     assert clean["invalid_count"] == 1  # the sample's one invalid row is exported too
     assert clean["rejected_rows_ref"].endswith(f"/quarantine/rows/{clean['batch_id']}.csv")
+
+
+# --------------------------------------------------------------------------- circuit breaker
+
+
+def test_breaker_state_is_shared_across_invocations(
+    aws: dict[str, Any], lambda_context: FakeContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda _: None)  # the enricher backs off between 5xx
+    monkeypatch.setenv("BREAKER_THRESHOLD", "1")
+    monkeypatch.setenv("BREAKER_COOLDOWN_SECONDS", "600")
+    event = {"batch_id": "brk", "batch_date": "2026-10-01"}
+    failed = enrich.handler(
+        {
+            **event,
+            "row": {"row_number": 1, "first_name": "Server", "last_name": "Error", "company": "x"},
+        },
+        lambda_context,
+    )
+    assert failed["status"] == "error" and failed["http_status"] == 500
+    item = aws["table"].get_item(Key={"pk": "breaker#mock"})["Item"]
+    assert int(item["open_until"]) > 0
+
+    skipped = enrich.handler(
+        {**event, "row": {"row_number": 2, "first_name": "John", "last_name": "Doe"}},
+        lambda_context,
+    )
+    assert skipped["status"] == "provider_unavailable"
+    assert skipped["credits_consumed"] == 0 and skipped["attempts"] == 0
+    stored = json.loads(
+        aws["s3"].get_object(Bucket=DATA, Key=common.result_key("brk", 2))["Body"].read()
+    )
+    assert stored["error_message"].startswith("provider circuit breaker open")
+    # Not cached: a later run retries the row instead of replaying the skip.
+    assert [i for i in aws["table"].scan()["Items"] if i["pk"].startswith("lookup#")] == []
+
+    # The curated step turns the skips into a batch warning.
+    aws["s3"].put_object(
+        Bucket=DATA,
+        Key=common.input_key("brk"),
+        Body=json.dumps(
+            {
+                "batch_id": "brk",
+                "batch_date": "2026-10-01",
+                "provider": "mock",
+                "rows": [
+                    {"row_number": 1, "first_name": "Server", "last_name": "Error", "company": "x"},
+                    {"row_number": 2, "first_name": "John", "last_name": "Doe"},
+                ],
+                "invalid": [],
+                "warnings": [],
+            }
+        ).encode(),
+    )
+    manifest = build_curated.handler({"batch_id": "brk"}, lambda_context)
+    assert manifest["status_counts"] == {"error": 1, "provider_unavailable": 1}
+    assert any(
+        w.startswith("provider_unavailable: 1 rows") for w in manifest["quality"]["warnings"]
+    )
+    assert manifest["pipeline_version"] == __version__

@@ -91,3 +91,11 @@ FROM (
 )
 WHERE recency = 1
 ORDER BY full_name;
+
+-- 6. Batch quality over time: the curated step writes its quality report to
+--    fact_batch_quality, so match rate, rejections and warnings can be trended.
+SELECT batch_date, batch_id, pipeline_version, rows_valid, rows_invalid, matched, cached,
+       not_found, budget_deferred, provider_unavailable, error, round(match_rate, 2) AS match_rate,
+       flagged_matches, warning_count, warnings, credits_spent, persons
+FROM people_enrichment_dev.fact_batch_quality
+ORDER BY batch_date DESC, batch_id DESC;

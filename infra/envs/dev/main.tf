@@ -12,6 +12,12 @@ module "storage" {
   account_id         = data.aws_caller_identity.current.account_id
   force_destroy      = var.force_destroy_buckets
   raw_retention_days = var.raw_retention_days
+  # Humans (IAM users of this account) and the CI apply role may still delete raw objects,
+  # which `terraform destroy` needs; every role the pipeline runs under cannot.
+  raw_delete_principal_arns = [
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/*",
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-github-apply",
+  ]
 }
 
 module "secrets" {
@@ -93,4 +99,5 @@ module "orchestration" {
   dead_letter_queue_arn = aws_sqs_queue.lambda_dlq.arn
   max_concurrency       = var.max_concurrency
   log_retention_days    = var.log_retention_days
+  max_execution_seconds = var.max_execution_seconds
 }

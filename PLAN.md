@@ -649,6 +649,45 @@ Chosen from a review of what comparable pipelines do that this one did not (opti
 > empty value, the older state versions were deleted from the versioned state bucket, and
 > the key was re-set with `make set-api-key`.
 
+### Phase 9 — The $0 pass (added 2026-09-26) — ✅ done 2026-09-26
+
+The remaining best-practice options that cost nothing on the platforms already in use,
+plus the one recurring charge the MVP still had.
+
+1. **Custom metrics trimmed to nine** (ten are always free): the two credit gauges,
+   `CreditsSpent`, `Matched`, `BudgetDeferred`, `Error`, `ProviderUnavailable`,
+   `RowsInvalid`, `PersonsCurated`. Cold-start metrics and the counts derivable from the
+   tables (`RowsValid`, `EmploymentRows`, `NotFound`, `Ambiguous`, `Cached`) are gone; the
+   September metrics already counted stop counting in October.
+2. **Append-only raw layer**: the data bucket policy denies `s3:DeleteObject` under `raw/`
+   to every principal except the account's IAM users and the CI apply role (so
+   `terraform destroy` still works); no pipeline role ever had the permission.
+3. **Replay tooling**: `pipeline_version` on every curated row and `make rebuild-all`
+   (all 21 batches rebuilt from stored results in one pass, no provider calls).
+4. **Circuit breaker**: after `breaker_threshold` (3) consecutive 5xx/transport failures
+   the provider is not called for `breaker_cooldown_seconds` (300); rows in that window
+   are `provider_unavailable` (a new status, not cached, so a later run retries them) and
+   the batch warns. State shared across invocations in DynamoDB (`breaker#<provider>`).
+5. **`fact_batch_quality`**: the manifest's quality report as a fourth curated table, one
+   row per batch build, with saved query 6 to trend match rate, rejections and warnings.
+6. **Input data contract**: `docs/input-contract.json` generated from the ingestion code
+   (`make input-contract`, drift fails a test) and `enrich validate --input file.csv`
+   (`make validate INPUT=`) as the executable dry run for the source owner.
+7. **Dashboard and freshness alarm**: one CloudWatch dashboard (three are free) over the
+   free AWS metrics plus the nine custom ones, and a ninth alarm on Step Functions
+   `ExecutionTime` above `max_execution_seconds` (600), the upload-to-curated objective.
+8. **Account guards at $0**: IAM Access Analyzer external-access analyzer (findings go to
+   the alerts topic through EventBridge; an archive rule silences the three GitHub OIDC
+   roles, which are external by design), and a $1 daily Cost Anomaly Detection subscription
+   on the default monitor AWS created for the account.
+9. **Consent column**: optional `consent` (aliases `opt_in`, `marketing_consent`, …); an
+   explicit no is rejected before any provider call, and `require_consent` (off by
+   default) rejects a missing answer too.
+
+> Left as cents, not zero, and accepted: S3 storage and requests (about 1 MB) and Athena's
+> 10 MB minimum per query. Skipped as paid or low value: Iceberg MERGE, CodeDeploy canaries,
+> a CloudTrail trail, Glue Data Quality, GuardDuty, Config, Macie, S3 data events.
+
 ## 9. Credit and cost budget
 
 **API credits (PDL free plan, per calendar month):**

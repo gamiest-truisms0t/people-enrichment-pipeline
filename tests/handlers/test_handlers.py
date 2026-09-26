@@ -108,7 +108,12 @@ def test_validate_then_enrich_then_build(
         "not_found": 1,
     }
     assert manifest["quality"]["warnings"] == []  # clean sample: nothing to report
-    assert set(manifest["files"]) == {"dim_person", "fact_employment", "fact_lookup"}
+    assert set(manifest["files"]) == {
+        "dim_person",
+        "fact_employment",
+        "fact_lookup",
+        "fact_batch_quality",
+    }
 
     person_key = common.curated_key("dim_person", batch_date, batch_id)
     table = pq.read_table(io.BytesIO(s3.get_object(Bucket=DATA, Key=person_key)["Body"].read()))

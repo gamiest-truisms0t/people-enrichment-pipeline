@@ -125,3 +125,22 @@ def test_duplicate_canonical_headers_keep_the_first() -> None:
         "ignored_columns: ticket_type",
         "duplicate_columns: country (first occurrence kept)",
     ]
+
+
+def test_consent_column_rejects_an_explicit_no_and_optionally_a_missing_answer() -> None:
+    text = "first_name,last_name,opt_in\nJohn,Doe,yes\nJane,Smith,no\nAlex,Lee,\nSam,Roe,maybe\n"
+    parsed = parse_csv(io.StringIO(text))
+    assert [r.row_number for r in parsed.rows] == [1, 3, 4]
+    assert parsed.rows[0].consent is True
+    assert parsed.rows[1].consent is None and parsed.rows[1].notes == []
+    assert parsed.rows[2].consent is None
+    assert parsed.rows[2].notes == ["input.consent_unrecognised"]
+    assert [(i.row_number, i.reason) for i in parsed.invalid] == [(2, "consent: withheld")]
+
+    strict = parse_csv(io.StringIO(text), guards=GuardConfig(require_consent=True))
+    assert [r.row_number for r in strict.rows] == [1]
+    assert [i.reason for i in strict.invalid] == [
+        "consent: withheld",
+        "consent: not recorded (require_consent is on)",
+        "consent: not recorded (require_consent is on)",
+    ]

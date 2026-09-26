@@ -1,0 +1,130 @@
+{
+  "contract_version": "1.2.0",
+  "format": {
+    "type": "CSV with a header row",
+    "encodings": [
+      "UTF-8 (with or without BOM)",
+      "UTF-16 with BOM",
+      "Windows-1252 (accepted with a warning)"
+    ],
+    "delimiters": [
+      ",",
+      ";",
+      "tab",
+      "|"
+    ],
+    "max_bytes": 5000000,
+    "max_rows": 500
+  },
+  "columns": {
+    "required": [
+      "first_name",
+      "last_name"
+    ],
+    "optional": [
+      "email",
+      "company",
+      "location",
+      "linkedin_url",
+      "consent"
+    ],
+    "header_aliases": {
+      "first_name": [
+        "first",
+        "first_name",
+        "firstname",
+        "given",
+        "given_name"
+      ],
+      "last_name": [
+        "family_name",
+        "last",
+        "last_name",
+        "lastname",
+        "surname"
+      ],
+      "email": [
+        "e_mail",
+        "email",
+        "email_address",
+        "mail"
+      ],
+      "company": [
+        "company",
+        "company_name",
+        "employer",
+        "organisation",
+        "organization"
+      ],
+      "location": [
+        "city",
+        "country",
+        "location",
+        "region"
+      ],
+      "linkedin_url": [
+        "linkedin",
+        "linkedin_profile",
+        "linkedin_url",
+        "profile_url"
+      ],
+      "consent": [
+        "consent",
+        "consent_to_contact",
+        "gdpr_consent",
+        "marketing_consent",
+        "opt_in",
+        "optin",
+        "permission"
+      ]
+    },
+    "unknown_columns": "ignored, listed as a warning"
+  },
+  "row_rules": {
+    "first_name / last_name": [
+      "1 to 100 characters",
+      "at least one letter, no digits",
+      "not an email address",
+      "not a placeholder (e.g. test, n/a, unknown, a repeated header)",
+      "failing any of these rejects the row (status invalid_input, flag input.rejected)"
+    ],
+    "email": [
+      "local@domain.tld, at most 254 characters",
+      "otherwise dropped with note input.email_invalid; the row continues"
+    ],
+    "linkedin_url": [
+      "linkedin.com/in/<slug> or /pub/<slug>, any scheme, www or regional subdomain",
+      "canonicalised; otherwise dropped with note input.linkedin_url_invalid"
+    ],
+    "company / location": [
+      "at most 200 characters",
+      "not a placeholder such as self-employed, student, n/a",
+      "otherwise dropped with note input.company_placeholder / _too_long"
+    ],
+    "consent": [
+      "yes/no spellings: 1, agree, agreed, consented, granted, ok, opt in, opted in, optin, true, y, yes | 0, decline, declined, false, n, no, none, opt out, opted out, optout, refused, withheld",
+      "an explicit no rejects the row (consent: withheld)",
+      "with require_consent on, a missing or unrecognised answer rejects the row too"
+    ]
+  },
+  "file_rules": {
+    "rejected_when": [
+      "no header, or first_name/last_name missing from the header",
+      "not text (NUL bytes) or above max_bytes",
+      "a header but no data rows, or every data row rejected",
+      "more than 50% of 5+ rows rejected"
+    ],
+    "warned_when": [
+      "decoded as UTF-16 or Windows-1252",
+      "delimiter other than comma",
+      "unknown or duplicate columns",
+      "20% or more rows rejected",
+      "fewer than 20% of valid rows matched"
+    ]
+  },
+  "outputs": {
+    "rejected_rows": "quarantine/rows/<batch_id>.csv (row_number, reason, raw fields)",
+    "rejected_files": "quarantine/files/<timestamp>-<name> with the reason as object metadata",
+    "dry_run": "enrich validate --input file.csv (exit 0 accepted, 2 rejected)"
+  }
+}

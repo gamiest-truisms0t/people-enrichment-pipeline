@@ -1,0 +1,21 @@
+-- 6. Batch quality over time: match rate, rejections, warnings and credits per batch,
+--    as written by the curated step (the manifest's quality report as a table).
+SELECT batch_date,
+       batch_id,
+       pipeline_version,
+       rows_valid,
+       rows_invalid,
+       matched,
+       cached,
+       not_found,
+       budget_deferred,
+       provider_unavailable,
+       error,
+       round(match_rate, 2) AS match_rate,
+       flagged_matches,
+       warning_count,
+       warnings,
+       credits_spent,
+       persons
+FROM ${database}.fact_batch_quality
+ORDER BY batch_date DESC, batch_id DESC;

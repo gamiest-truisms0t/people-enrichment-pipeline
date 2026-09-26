@@ -131,6 +131,27 @@ GitHub Actions, the Python lock file and the Terraform providers weekly. All act
 pinned to commit SHAs. Server-side branch protection needs a public repository or GitHub
 Pro, which is why this repository is public.
 
+## Data guards
+
+Registration exports are rarely clean, so the pipeline has explicit rules for input that
+does not look like what it expects (`src/enrich_pipeline/guards.py`). Try them locally:
+
+```bash
+make run INPUT=data/sample/dirty.csv   # salvaged fields, rejected rows and batch warnings
+```
+
+| Layer | What is checked | What happens |
+|---|---|---|
+| **File** | size (`max_input_bytes`, 5 MB), encoding (UTF-8, UTF-16 with BOM; anything else read as Windows-1252), delimiter (`,` `;` tab `\|`), required header, extra or duplicate columns | recoverable oddities are accepted and recorded as warnings; a file with no usable header, no rows, only rejected rows, or more than `max_invalid_fraction` (50 %) rejected rows **fails the batch** with the reason in the notification email, because it almost certainly is not the layout the header claims |
+| **Row** | names: non-empty, no digits, has letters, not an email address, not a placeholder (`test`, `n/a`, `unknown`, a repeated header row…), ≤ 100 chars; email shape; LinkedIn URL shape; company/location placeholders (`self-employed`, `student`, `n/a`…) and length | a bad **name** rejects the row as `invalid_input` with the field and reason (flag `input.rejected`); a bad **optional** field is dropped and the row continues with a note (`input.email_invalid`, `input.company_placeholder`, …) so a person can still be found by name |
+| **Match** | the matched profile's surname vs the input, missing name or current job, no employment history, likelihood sitting on the threshold, malformed or reversed employment dates | the match is kept and flagged (`match.name_mismatch`, `match.sparse_profile`, `match.likelihood_at_floor`, …) in `quality_flags` on `dim_person` and `fact_lookup`, so analysts can filter or review |
+| **Output** | one `fact_lookup` row per input row, unique keys, no orphan employment rows, Parquet row counts and columns re-read after writing | the curated step fails rather than publish inconsistent tables |
+| **Batch** | match rate below `min_match_rate` (20 %), ≥ 20 % rows rejected, flagged matches, unrecorded rows, decoding or delimiter fallbacks | listed under `quality` in the batch manifest and in the "completed with warnings" email |
+
+The thresholds are Terraform variables (and `enrich run` flags); the field rules are fixed.
+Every drop, rejection and doubt is queryable: `SELECT status, error_message, quality_flags
+FROM fact_lookup WHERE batch_id = …` shows exactly what the guards did to a batch.
+
 ## Running a batch on AWS
 
 ```bash

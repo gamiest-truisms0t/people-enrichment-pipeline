@@ -9,3 +9,15 @@ variable "region" {
   type        = string
   default     = "ap-southeast-1"
 }
+
+variable "github_repository" {
+  description = "GitHub repository (owner/name) whose Actions workflows may assume the CI roles."
+  type        = string
+  default     = "gamiest-truisms0t/people-enrichment-pipeline"
+}
+
+variable "environments" {
+  description = "Environment stacks whose state the CI roles may read (state key <env>/terraform.tfstate)."
+  type        = list(string)
+  default     = ["dev"]
+}

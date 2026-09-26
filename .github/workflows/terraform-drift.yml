@@ -1,0 +1,64 @@
+name: terraform drift
+
+# Daily: refresh the dev stack against AWS with a read-only role and fail (which emails
+# the repository owner) when the live account differs from main. Nothing is changed.
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_IN_AUTOMATION: "1"
+
+jobs:
+  drift:
+    name: detect drift (read-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_READONLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Write the deployment's variables
+        run: scripts/ci_tfvars.sh infra/envs/dev/ci.auto.tfvars
+        env:
+          TF_VAR_alert_email: ${{ secrets.TF_VAR_ALERT_EMAIL }}
+          TF_VAR_provider_name: ${{ vars.TF_VAR_PROVIDER_NAME }}
+          TF_VAR_owner: ${{ vars.TF_VAR_OWNER }}
+          TF_VAR_pdl_sandbox: ${{ vars.TF_VAR_PDL_SANDBOX }}
+      - name: Package the Lambda code
+        run: make package
+      - name: Init
+        run: make init
+      - name: Plan with refresh
+        run: |
+          set +e
+          terraform -chdir=infra/envs/dev plan -input=false -no-color -lock=false -detailed-exitcode > drift.txt 2>&1
+          code=$?
+          set -e
+          {
+            case "$code" in
+              0) echo "### No drift: the account matches main" ;;
+              2) echo "### Drift detected: the account differs from main" ;;
+              *) echo "### Drift check failed to run" ;;
+            esac
+            echo
+            echo '```'
+            head -c 60000 drift.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"

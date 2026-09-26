@@ -60,8 +60,39 @@ if [ "$status" = "SUCCEEDED" ]; then
     printf '%s\n' "$output" > "$E2E_OUTPUT_JSON"
   fi
   batch_id="$(jq -r .batch_id <<<"$output")"
+  batch_date="$(jq -r .batch_date <<<"$output")"
   echo "==> curated objects for batch $batch_id"
   aws s3 ls "s3://$DATA/curated/" --recursive | grep "$batch_id" | awk '{print "    " $3 " bytes  " $4}'
+
+  # Every input row, valid or not, must be visible in Athena the moment the batch lands
+  # (partition projection, no crawler). One tiny query, billed at the 10 MB minimum.
+  echo "==> Athena: fact_lookup rows for the batch"
+  database="$($TF output -raw glue_database)"
+  workgroup="$($TF output -raw athena_workgroup)"
+  expected="$(jq '.row_count + .invalid_count' <<<"$output")"
+  query_id="$(aws athena start-query-execution --work-group "$workgroup" \
+    --query-string "SELECT count(*) FROM \"$database\".fact_lookup WHERE batch_date = '$batch_date' AND batch_id = '$batch_id'" \
+    --query QueryExecutionId --output text)"
+  query_state="QUEUED"
+  for _ in $(seq 1 30); do
+    query_state="$(aws athena get-query-execution --query-execution-id "$query_id" \
+      --query QueryExecution.Status.State --output text)"
+    case "$query_state" in SUCCEEDED|FAILED|CANCELLED) break ;; esac
+    sleep 2
+  done
+  if [ "$query_state" != "SUCCEEDED" ]; then
+    echo "!! Athena query $query_id ended $query_state" >&2
+    aws athena get-query-execution --query-execution-id "$query_id" \
+      --query QueryExecution.Status.StateChangeReason --output text >&2
+    exit 1
+  fi
+  actual="$(aws athena get-query-results --query-execution-id "$query_id" \
+    --query 'ResultSet.Rows[1].Data[0].VarCharValue' --output text)"
+  echo "    $actual rows (expected $expected: $(jq -r '.row_count' <<<"$output") valid + $(jq -r '.invalid_count' <<<"$output") invalid)"
+  if [ "$actual" != "$expected" ]; then
+    echo "!! Athena row count mismatch" >&2
+    exit 1
+  fi
 else
   echo "==> error"
   aws stepfunctions describe-execution --execution-arn "$execution" --query '{error: error, cause: cause}' --output json

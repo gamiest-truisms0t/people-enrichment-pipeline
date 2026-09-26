@@ -66,8 +66,14 @@ def person_row(result: LookupResult, batch_id: str) -> Row:
         inferred_years_experience=profile.inferred_years_experience,
         match_likelihood=result.likelihood,
         lookup_method=result.method.value if result.method else None,
+        quality_flags=quality_flags(result),
         enriched_at=_naive_utc(result.requested_at),
     )
+
+
+def quality_flags(result: LookupResult) -> list[str]:
+    """Input notes (fields a guard dropped) followed by doubts about the match, deduplicated."""
+    return list(dict.fromkeys([*result.row.notes, *result.quality_flags]))
 
 
 def employment_rows(profile: PersonProfile, batch_id: str) -> list[Row]:
@@ -122,6 +128,7 @@ def lookup_row(result: LookupResult, batch_id: str) -> Row:
         attempts=result.attempts,
         provider=result.provider,
         raw_ref=result.raw_ref,
+        quality_flags=quality_flags(result),
         requested_at=_naive_utc(result.requested_at),
     )
 
@@ -140,6 +147,7 @@ def invalid_row(invalid: InvalidRow, batch_id: str, provider: str, at: datetime)
         credits_consumed=0,
         attempts=0,
         provider=provider,
+        quality_flags=["input.rejected"],
         requested_at=_naive_utc(at),
     )
 

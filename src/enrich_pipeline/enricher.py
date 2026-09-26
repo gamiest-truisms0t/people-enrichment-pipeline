@@ -23,6 +23,7 @@ from typing import Any, Protocol
 
 from pydantic import ValidationError
 
+from enrich_pipeline.guards import match_flags
 from enrich_pipeline.models import (
     InputRow,
     LookupMethod,
@@ -359,13 +360,26 @@ class Enricher:
             return LookupResult(
                 **common, status=LookupStatus.ERROR, error_message=f"unparseable profile: {exc}"
             )
-        likelihood = body.get("likelihood")
+        likelihood = float(body["likelihood"]) if body.get("likelihood") is not None else None
         return LookupResult(
             **common,
             status=LookupStatus.MATCHED,
             profile=profile,
-            likelihood=float(likelihood) if likelihood is not None else None,
+            likelihood=likelihood,
             candidates=1,
+            quality_flags=self._flags(common["row"], profile, likelihood, "enrich"),
+        )
+
+    def _flags(
+        self, row: InputRow, profile: PersonProfile, likelihood: float | None, kind: ResponseKind
+    ) -> list[str]:
+        return match_flags(
+            input_first_name=row.first_name,
+            input_last_name=row.last_name,
+            profile=profile,
+            likelihood=likelihood,
+            # Identify has its own confidence gate; only enrich matches sit on a floor.
+            likelihood_floor=self.config.enrich_min_likelihood if kind == "enrich" else None,
         )
 
     def _interpret_identify(self, common: dict[str, Any], body: dict[str, Any]) -> LookupResult:
@@ -398,4 +412,5 @@ class Enricher:
             profile=profile,
             likelihood=top_score,
             candidates=len(matches),
+            quality_flags=self._flags(common["row"], profile, top_score, "identify"),
         )

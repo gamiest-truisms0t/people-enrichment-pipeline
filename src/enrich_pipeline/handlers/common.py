@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from enrich_pipeline.enricher import EnrichConfig
+from enrich_pipeline.guards import GuardConfig
 from enrich_pipeline.models import LookupStatus
 
 METRIC_BY_STATUS: dict[LookupStatus, str] = {
@@ -45,11 +46,18 @@ class Settings:
     enrich_min_likelihood: int = EnrichConfig.enrich_min_likelihood
     location_hint: str | None = None
     metrics_namespace: str = "PeopleEnrichment"
+    # Data guards (batch-level thresholds); field rules are constants in guards.py.
+    max_input_bytes: int = GuardConfig.max_input_bytes
+    max_invalid_fraction: float = GuardConfig.max_invalid_fraction
+    min_match_rate: float = GuardConfig.min_match_rate
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         e = env if env is not None else os.environ
         return cls(
+            max_input_bytes=int(e.get("MAX_INPUT_BYTES", cls.max_input_bytes)),
+            max_invalid_fraction=float(e.get("MAX_INVALID_FRACTION", cls.max_invalid_fraction)),
+            min_match_rate=float(e.get("MIN_MATCH_RATE", cls.min_match_rate)),
             data_bucket=e["DATA_BUCKET"],
             landing_bucket=e.get("LANDING_BUCKET", ""),
             state_table=e["STATE_TABLE"],
@@ -79,6 +87,13 @@ class Settings:
             enrich_min_likelihood=self.enrich_min_likelihood,
             location_hint=self.location_hint,
             **overrides,
+        )
+
+    def guard_config(self) -> GuardConfig:
+        return GuardConfig(
+            max_input_bytes=self.max_input_bytes,
+            max_invalid_fraction=self.max_invalid_fraction,
+            min_match_rate=self.min_match_rate,
         )
 
 

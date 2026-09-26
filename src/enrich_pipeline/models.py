@@ -14,6 +14,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from enrich_pipeline.guards import clean_input_data, name_problem
+
 
 class LookupStatus(StrEnum):
     MATCHED = "matched"
@@ -48,7 +50,12 @@ def _obscured_to_none(value: Any) -> Any:
 
 
 class InputRow(BaseModel):
-    """One registrant from the input CSV, after header normalisation."""
+    """One registrant from the input CSV, after header normalisation and the data guards.
+
+    `guards.clean_input_data` runs first: it tidies every string and drops optional fields
+    that fail their rule, recording a note per drop in `notes`. The name validators then
+    decide whether the row is usable at all.
+    """
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="ignore")
 
@@ -59,6 +66,14 @@ class InputRow(BaseModel):
     company: str | None = None
     location: str | None = None
     linkedin_url: str | None = None
+    notes: list[str] = Field(
+        default_factory=list, description="input.* notes: optional fields dropped by a guard"
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _apply_guards(cls, data: Any) -> Any:
+        return clean_input_data(data) if isinstance(data, dict) else data
 
     @field_validator("email", "company", "location", "linkedin_url", mode="before")
     @classmethod
@@ -67,12 +82,16 @@ class InputRow(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def _email_shape(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        if "@" not in value or value.startswith("@") or value.endswith("@"):
-            raise ValueError("email must look like local@domain")
-        return value.casefold()
+    def _casefold_email(cls, value: str | None) -> str | None:
+        return value.casefold() if value is not None else None
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def _name_rules(cls, value: str) -> str:
+        problem = name_problem(value)
+        if problem is not None:
+            raise ValueError(problem)
+        return value
 
 
 class InvalidRow(BaseModel):
@@ -233,6 +252,9 @@ class LookupResult(BaseModel):
     credits_consumed: int = 0
     attempts: int = 1
     raw_ref: str | None = None
+    quality_flags: list[str] = Field(
+        default_factory=list, description="match.* doubts about a matched profile (data guards)"
+    )
     requested_at: datetime
 
     @property

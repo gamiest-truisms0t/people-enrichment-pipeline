@@ -14,6 +14,7 @@ from pathlib import Path
 
 from enrich_pipeline import __version__
 from enrich_pipeline.enricher import EnrichConfig
+from enrich_pipeline.guards import GuardConfig, InputError
 from enrich_pipeline.providers.base import Provider
 
 QUESTIONS: dict[str, str] = {
@@ -108,6 +109,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=EnrichConfig.enrich_min_likelihood,
         help="provider-side match threshold for enrich calls, 1-10",
     )
+    run.add_argument(
+        "--max-invalid-fraction",
+        type=float,
+        default=GuardConfig.max_invalid_fraction,
+        help="abort when more than this share of rows is rejected (files of 5+ rows)",
+    )
+    run.add_argument(
+        "--min-match-rate",
+        type=float,
+        default=GuardConfig.min_match_rate,
+        help="warn when fewer than this share of valid rows matched",
+    )
     run.add_argument("--json", action="store_true", help="print the run summary as JSON")
 
     query = sub.add_parser("query", help="answer the brief's questions against local Parquet")
@@ -140,13 +153,23 @@ def cmd_run(args: argparse.Namespace) -> int:
         max_identify_credits=args.max_identify_credits,
         location_hint=args.location_hint,
     )
-    summary = run_batch(
-        args.input,
-        provider=make_provider(args.provider, sandbox=args.sandbox, api_key_file=args.api_key_file),
-        out_dir=args.out,
-        config=config,
-        batch_id=args.batch_id,
+    guards = GuardConfig(
+        max_invalid_fraction=args.max_invalid_fraction, min_match_rate=args.min_match_rate
     )
+    try:
+        summary = run_batch(
+            args.input,
+            provider=make_provider(
+                args.provider, sandbox=args.sandbox, api_key_file=args.api_key_file
+            ),
+            out_dir=args.out,
+            config=config,
+            guards=guards,
+            batch_id=args.batch_id,
+        )
+    except InputError as exc:
+        print(f"input rejected: {exc}", file=sys.stderr)
+        return 2
     if args.json:
         print(summary.to_json())
         return 0
@@ -156,6 +179,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"  {status:<16} {count}")
     print(f"credits spent: {summary.credits_spent}")
     print(f"persons: {summary.persons}, employment rows: {summary.employment_rows}")
+    for warning in summary.warnings:
+        print(f"warning: {warning}")
     print(f"manifest: {summary.manifest}")
     return 0
 

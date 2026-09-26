@@ -44,6 +44,7 @@ DIM_PERSON: tuple[Column, ...] = (
     Column("inferred_years_experience", "int"),
     Column("match_likelihood", "double", "PDL likelihood 1-10 or Identify match_score 1-99"),
     Column("lookup_method", "string"),
+    Column("quality_flags", "string_list", "input.* notes and match.* doubts (data guards)"),
     Column("enriched_at", "timestamp"),
 )
 
@@ -87,6 +88,7 @@ FACT_LOOKUP: tuple[Column, ...] = (
     Column("attempts", "int"),
     Column("provider", "string"),
     Column("raw_ref", "string"),
+    Column("quality_flags", "string_list", "input.* notes and match.* doubts (data guards)"),
     Column("requested_at", "timestamp"),
 )
 

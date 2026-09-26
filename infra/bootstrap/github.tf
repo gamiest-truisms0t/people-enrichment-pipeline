@@ -26,10 +26,17 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
+  repo_owner = split("/", var.github_repository)[0]
+  repo_name  = split("/", var.github_repository)[1]
+  # GitHub issues OIDC tokens with the immutable subject format: the owner and the
+  # repository carry their numeric ids (repo:owner@<id>/name@<id>:...), so a renamed
+  # repository keeps its trust and a deleted-and-recreated one does not inherit it.
+  # Look the ids up with: gh api repos/<owner>/<name>/actions/oidc/customization/sub
+  subject_prefix = "repo:${local.repo_owner}@${var.github_owner_id}/${local.repo_name}@${var.github_repository_id}"
   github_subjects = {
-    plan     = ["repo:${var.github_repository}:pull_request"]
-    readonly = ["repo:${var.github_repository}:ref:refs/heads/main"]
-    apply    = ["repo:${var.github_repository}:ref:refs/heads/main"]
+    plan     = ["${local.subject_prefix}:pull_request"]
+    readonly = ["${local.subject_prefix}:ref:refs/heads/main"]
+    apply    = ["${local.subject_prefix}:ref:refs/heads/main"]
   }
   state_object_arns = [for env in var.environments : "${aws_s3_bucket.state.arn}/${env}/terraform.tfstate"]
   project_role_arns = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project}-*"]
@@ -84,11 +91,30 @@ data "aws_iam_policy_document" "github_plan" {
     resources = local.state_object_arns
   }
 
-  # The stack's data sources: the aws/ssm alias lookup. Caller identity needs no permission.
+  # Even without a refresh, Terraform reads a little metadata at plan time: the aws/ssm
+  # alias data source (ListAliases + DescribeKey on that key) and the DynamoDB table's
+  # description (the provider checks it while diffing). Nothing else in the account.
   statement {
     sid       = "ResolveKmsAlias"
     actions   = ["kms:ListAliases"]
     resources = ["*"]
+  }
+
+  statement {
+    sid       = "DescribeSsmKey"
+    actions   = ["kms:DescribeKey"]
+    resources = [data.aws_kms_alias.ssm.target_key_arn]
+  }
+
+  statement {
+    sid = "DescribeProjectTables"
+    actions = [
+      "dynamodb:DescribeTable",
+      "dynamodb:DescribeTimeToLive",
+      "dynamodb:DescribeContinuousBackups",
+      "dynamodb:ListTagsOfResource",
+    ]
+    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.project}-*"]
   }
 }
 

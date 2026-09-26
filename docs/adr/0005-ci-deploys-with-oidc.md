@@ -25,14 +25,21 @@ GitHub OIDC provider and only the context that needs it:
 
 | Role | Assumable by | Permissions | Used for |
 |---|---|---|---|
-| `github-plan` | pull requests | read the dev state object, list the state bucket, `kms:ListAliases` | `terraform plan -refresh=false -lock=false`, posted as a PR comment |
+| `github-plan` | pull requests | read the dev state object, list the state bucket, and the metadata Terraform reads even without a refresh: the `aws/ssm` key alias and description, the project DynamoDB table's description | `terraform plan -refresh=false -lock=false`, posted as a PR comment |
 | `github-readonly` | `main` | `ReadOnlyAccess` plus `kms:Decrypt` through SSM | daily drift check with a real refresh; fails the workflow when the account differs from `main` |
 | `github-apply` | `main` | `PowerUserAccess` plus IAM management of `people-enrichment-*` roles and `iam:PassRole` to Lambda, Step Functions and EventBridge | plan, apply the saved plan, then a zero-credit end-to-end run as the deploy gate |
 
+The trust policies match GitHub's **immutable subject** format, in which the owner and the
+repository carry their numeric ids (`repo:owner@<id>/name@<id>:pull_request`): a renamed
+repository keeps its trust, a deleted and re-created one with the same name does not. The
+ids are bootstrap variables; `gh api repos/<owner>/<name>/actions/oidc/customization/sub`
+shows the prefix GitHub uses.
+
 The PR plan deliberately runs **without refreshing** against AWS: it compares the proposed
-configuration with the recorded state, which needs no permission on any resource, so a
-pull request from a collaborator cannot read the account (and cannot read the SSM
-parameter). Drift, which needs a refresh, is the read-only role's job on a schedule.
+configuration with the recorded state, so a pull request from a collaborator cannot read
+the account's data (and cannot read the SSM parameter); the only live reads are the key
+alias and table descriptions the provider consults while diffing. Drift, which needs a
+refresh, is the read-only role's job on a schedule.
 
 Configuration the workflows need lives in GitHub Actions variables (region, state bucket,
 role ARNs, non-secret Terraform variables) and one secret (the alert email);

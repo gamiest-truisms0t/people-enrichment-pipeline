@@ -1,0 +1,302 @@
+{
+  "database_base_name": "people_enrichment",
+  "partition_column": "batch_date",
+  "tables": {
+    "dim_person": [
+      {
+        "name": "person_id",
+        "type": "string",
+        "comment": "provider's stable person id"
+      },
+      {
+        "name": "provider",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "batch_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "input_row_number",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "input_first_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "input_last_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "input_email",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "full_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "first_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "last_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "linkedin_url",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "location_country",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "location_name",
+        "type": "string",
+        "comment": "null on PDL's free plan"
+      },
+      {
+        "name": "current_job_title",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "current_job_title_role",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "current_company_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "current_company_industry",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "inferred_years_experience",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "match_likelihood",
+        "type": "double",
+        "comment": "PDL likelihood 1-10 or Identify match_score 1-99"
+      },
+      {
+        "name": "lookup_method",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "enriched_at",
+        "type": "timestamp",
+        "comment": ""
+      }
+    ],
+    "fact_employment": [
+      {
+        "name": "person_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "batch_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "sequence_no",
+        "type": "int",
+        "comment": "0 = current/most recent position"
+      },
+      {
+        "name": "company_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "company_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "company_website",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "company_linkedin_url",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "company_industry",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "company_size",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "company_location_country",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "title_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "title_role",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "title_sub_role",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "title_levels",
+        "type": "array<string>",
+        "comment": ""
+      },
+      {
+        "name": "start_date",
+        "type": "string",
+        "comment": "as delivered: YYYY, YYYY-MM or YYYY-MM-DD"
+      },
+      {
+        "name": "end_date",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "start_year",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "is_current",
+        "type": "boolean",
+        "comment": ""
+      }
+    ],
+    "fact_lookup": [
+      {
+        "name": "batch_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "row_number",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "input_first_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "input_last_name",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "input_email",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "input_company",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "lookup_key",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "lookup_method",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "person_id",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "likelihood",
+        "type": "double",
+        "comment": ""
+      },
+      {
+        "name": "candidates",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "http_status",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "error_message",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "credits_consumed",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "attempts",
+        "type": "int",
+        "comment": ""
+      },
+      {
+        "name": "provider",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "raw_ref",
+        "type": "string",
+        "comment": ""
+      },
+      {
+        "name": "requested_at",
+        "type": "timestamp",
+        "comment": ""
+      }
+    ]
+  }
+}

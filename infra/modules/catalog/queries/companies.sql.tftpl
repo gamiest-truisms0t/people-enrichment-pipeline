@@ -1,0 +1,14 @@
+-- 2. What companies have they worked at?
+SELECT p.batch_date,
+       p.full_name,
+       e.company_name,
+       e.company_industry,
+       e.start_date,
+       e.end_date,
+       e.is_current
+FROM ${database}.fact_employment e
+JOIN ${database}.dim_person p
+  ON p.person_id = e.person_id
+ AND p.batch_id = e.batch_id
+ AND p.batch_date = e.batch_date
+ORDER BY p.batch_date DESC, p.full_name, e.sequence_no;

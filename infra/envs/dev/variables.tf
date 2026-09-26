@@ -72,6 +72,12 @@ variable "location_hint" {
   default     = ""
 }
 
+variable "projection_start_date" {
+  description = "First batch_date Athena partition projection covers (yyyy-MM-dd)."
+  type        = string
+  default     = "2026-09-01"
+}
+
 variable "log_retention_days" {
   type    = number
   default = 14

@@ -20,6 +20,17 @@ module "secrets" {
   name_prefix = local.name_prefix
 }
 
+# Glue database + projected external tables over curated/, Athena workgroup with
+# encrypted results and a scan cutoff, and the brief's three questions as saved queries.
+module "catalog" {
+  source = "../../modules/catalog"
+
+  name_prefix           = local.name_prefix
+  environment           = var.environment
+  data_bucket_name      = module.storage.data_bucket_name
+  projection_start_date = var.projection_start_date
+}
+
 # Dead-letter queue for any asynchronous Lambda invocation that fails after retries
 # and for EventBridge events that could not start the pipeline. Step Functions invokes
 # the functions synchronously, so this is a safety net, not a hot path.

@@ -181,6 +181,7 @@ resource "aws_athena_named_query" "question" {
     "3-which-roles"                = "roles.sql.tftpl"
     "4-outcome-per-input-row"      = "outcomes.sql.tftpl"
     "5-latest-snapshot-per-person" = "latest.sql.tftpl"
+    "6-batch-quality-over-time"    = "quality.sql.tftpl"
   }
 
   name        = each.key

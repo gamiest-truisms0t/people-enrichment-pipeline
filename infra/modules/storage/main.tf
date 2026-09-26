@@ -96,11 +96,42 @@ data "aws_iam_policy_document" "tls_only" {
   }
 }
 
+# The raw layer is append-only for everything that runs the pipeline: no role in this
+# stack has s3:DeleteObject, and this statement denies it to any other principal except
+# the deployers listed in raw_delete_principal_arns (so `terraform destroy` still works).
+# Lifecycle expiration is performed by S3 itself and is not subject to the policy.
+data "aws_iam_policy_document" "data_bucket" {
+  source_policy_documents = [data.aws_iam_policy_document.tls_only["data"].json]
+
+  statement {
+    sid    = "DenyRawDeletes"
+    effect = "Deny"
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    actions   = ["s3:DeleteObject", "s3:DeleteObjectVersion"]
+    resources = ["${aws_s3_bucket.this["data"].arn}/raw/*"]
+
+    condition {
+      test     = "ArnNotLike"
+      variable = "aws:PrincipalArn"
+      values   = var.raw_delete_principal_arns
+    }
+  }
+}
+
 resource "aws_s3_bucket_policy" "this" {
   for_each = local.buckets
 
-  bucket     = aws_s3_bucket.this[each.key].id
-  policy     = data.aws_iam_policy_document.tls_only[each.key].json
+  bucket = aws_s3_bucket.this[each.key].id
+  policy = (
+    each.key == "data"
+    ? data.aws_iam_policy_document.data_bucket.json
+    : data.aws_iam_policy_document.tls_only[each.key].json
+  )
   depends_on = [aws_s3_bucket_public_access_block.this]
 }
 

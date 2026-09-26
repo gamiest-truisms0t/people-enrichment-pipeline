@@ -23,6 +23,9 @@ locals {
     MAX_ENRICH_CREDITS           = tostring(var.max_enrich_credits)
     MAX_IDENTIFY_CREDITS         = tostring(var.max_identify_credits)
     MAX_CREDITS_PER_BATCH        = tostring(var.max_credits_per_batch)
+    BREAKER_THRESHOLD            = tostring(var.breaker_threshold)
+    BREAKER_COOLDOWN_SECONDS     = tostring(var.breaker_cooldown_seconds)
+    REQUIRE_CONSENT              = var.require_consent ? "1" : "0"
     IDENTIFY_MIN_SCORE           = tostring(var.identify_min_score)
     IDENTIFY_MIN_MARGIN          = tostring(var.identify_min_margin)
     ENRICH_MIN_LIKELIHOOD        = tostring(var.enrich_min_likelihood)

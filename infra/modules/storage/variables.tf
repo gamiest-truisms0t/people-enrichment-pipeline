@@ -44,3 +44,8 @@ variable "quarantine_retention_days" {
   type        = number
   default     = 90
 }
+
+variable "raw_delete_principal_arns" {
+  description = "Principal ARN patterns still allowed to delete under raw/ (the deployers, so destroy works). Everyone else is denied; the pipeline's own roles never had the permission."
+  type        = list(string)
+}

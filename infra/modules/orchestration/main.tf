@@ -229,3 +229,24 @@ resource "aws_cloudwatch_metric_alarm" "executions_timed_out" {
     StateMachineArn = aws_sfn_state_machine.pipeline.arn
   }
 }
+
+# The freshness/latency objective: a batch's curated tables exist within
+# max_execution_seconds of the upload. ExecutionTime is a free AWS metric.
+resource "aws_cloudwatch_metric_alarm" "execution_time" {
+  alarm_name          = "${var.name_prefix}-pipeline-execution-time"
+  alarm_description   = "A pipeline execution took longer than ${var.max_execution_seconds} s from upload to curated tables."
+  namespace           = "AWS/States"
+  metric_name         = "ExecutionTime"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = var.max_execution_seconds * 1000
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alerts_topic_arn]
+  ok_actions          = [var.alerts_topic_arn]
+
+  dimensions = {
+    StateMachineArn = aws_sfn_state_machine.pipeline.arn
+  }
+}

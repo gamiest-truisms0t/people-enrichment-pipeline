@@ -140,13 +140,19 @@ clean: ## Remove local build and test artefacts
 
 # --- Packaging ----------------------------------------------------------------
 # One zip serves all three functions. Dependencies come from uv.lock as arm64
-# manylinux wheels (no local compilation, reproducible). boto3 is excluded because
-# the Lambda runtime ships it; everything else, including Powertools, is vendored.
+# manylinux wheels (no local compilation). boto3 is excluded because the Lambda runtime
+# ships it; everything else, including Powertools, is vendored.
+#
+# The build is reproducible across machines: Terraform's archive_file already fixes the
+# zip timestamps, and the only machine-specific content, the console scripts whose shebang
+# names the installing interpreter's path, is removed together with the RECORD lines that
+# hash them. A laptop `make plan` after a CI deploy of the same commit shows no function
+# changes.
 
 PYTHON_PLATFORM ?= aarch64-manylinux2014
 PYTHON_VERSION  ?= 3.13
 
-package: ## Build build/lambda (arm64 wheels pinned from uv.lock) for Terraform to zip
+package: ## Build build/lambda (arm64 wheels pinned from uv.lock, reproducible) for Terraform to zip
 	rm -rf build/lambda build/lambda.zip && mkdir -p build/lambda
 	$(UV) export --no-dev --no-hashes --no-emit-project --no-header --format requirements-txt \
 	  | grep -viE '^(boto3|botocore|s3transfer|jmespath)==' > build/requirements.txt
@@ -155,6 +161,8 @@ package: ## Build build/lambda (arm64 wheels pinned from uv.lock) for Terraform 
 	  --target build/lambda -r build/requirements.txt
 	cp -R src/enrich_pipeline build/lambda/enrich_pipeline
 	find build/lambda -type d -name '__pycache__' -prune -exec rm -rf {} +
+	rm -rf build/lambda/bin build/lambda/.lock
+	find build/lambda -name RECORD -exec sed -i.bak '/^bin\//d' {} + && find build/lambda -name RECORD.bak -delete
 	@echo "package: $$(du -sh build/lambda | cut -f1) unzipped in build/lambda"
 
 # --- Terraform ----------------------------------------------------------------

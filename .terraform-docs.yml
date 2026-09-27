@@ -31,3 +31,7 @@ settings:
   hide-empty: true
   required: true
   type: true
+  # Provider versions come from the version constraints, not from .terraform.lock.hcl:
+  # modules have no lock file in CI (pre-commit's validate hook creates untracked ones
+  # locally), and the output must be identical everywhere for the check to hold.
+  lockfile: false

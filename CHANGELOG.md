@@ -7,6 +7,26 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-27
+
+Right to erasure.
+
+### Added
+
+- `enrich erase` and `make erase EMAIL=… | NAME="First Last" | PERSON_ID=…`: removes one
+  person from every layer of the deployed pipeline. It finds the batches that hold them,
+  deletes their lookup results and raw provider responses, rewrites the parsed input and
+  the rejected-rows export, drops their cache entries, rebuilds the curated tables and the
+  manifest of each affected batch through the deployed function, and purges every
+  noncurrent object version. A tombstone `erasure#<request id>` records counts, the actor
+  and a hash of the identity. `DRY_RUN=1` previews; the operator's upload in the landing
+  bucket is reported, not touched.
+
+### Verified
+
+- The laptop and CI builds of `v1.2.6` hash identically: `make plan` after the CI deploy of
+  the same commit reports no changes.
+
 ## [1.2.6] - 2026-09-27
 
 Property-based tests and reproducible Lambda builds.
@@ -241,7 +261,8 @@ Local pipeline.
   writer, local runner and CLI verified with DuckDB; project skeleton with CI pinned to
   commit SHAs.
 
-[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.6...HEAD
+[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.6...v1.3.0
 [1.2.6]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.3...v1.2.4

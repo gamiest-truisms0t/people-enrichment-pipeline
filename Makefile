@@ -18,7 +18,7 @@ ENV ?= dev
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
         e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify \
         idempotency-proof iam-check branch-protection quarantine quarantine-get redrive ci-config \
-        rebuild-all validate input-contract repo-settings release demo tf-docs tf-docs-check
+        rebuild-all validate input-contract repo-settings release demo tf-docs tf-docs-check erase
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -243,6 +243,14 @@ rebuild: ## Rebuild the curated tables for BATCH=<batch_id> from stored results 
 
 rebuild-all: ## Rebuild every batch's curated tables from stored results (PREFIX=<batch_id prefix> to narrow)
 	scripts/rebuild_all.sh $(PREFIX)
+
+erase: ## Right to erasure: remove one person from the deployed data (EMAIL=... | NAME="First Last" | PERSON_ID=...; DRY_RUN=1 previews)
+	@test -n "$(EMAIL)$(NAME)$(PERSON_ID)" || { echo 'usage: make erase EMAIL=... | NAME="First Last" | PERSON_ID=... [DRY_RUN=1]'; exit 1; }
+	$(UV) run enrich erase --bucket "$$($(TF_ENV) output -raw data_bucket)" \
+	  --table "$$($(TF_ENV) output -raw state_table)" \
+	  --rebuild-function "$$($(TF_ENV) output -json function_names | jq -r .build_curated)" \
+	  $(if $(EMAIL),--email "$(EMAIL)",) $(if $(NAME),--name "$(NAME)",) \
+	  $(if $(PERSON_ID),--person-id "$(PERSON_ID)",) $(if $(filter 1,$(DRY_RUN)),--dry-run,)
 
 validate: ## Dry-run the input guards on INPUT without enriching: what would be accepted, salvaged, rejected
 	$(UV) run enrich validate --input $(INPUT)

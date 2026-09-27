@@ -48,3 +48,10 @@ repos:
       - id: terraform_checkov
         args:
           - --args=--config-file=__GIT_WORKING_DIR__/.checkov.yaml
+      - id: terraform_docs
+        args:
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=false
+          # This hook resolves --config against the repository root itself.
+          - --args=--config=.terraform-docs.yml

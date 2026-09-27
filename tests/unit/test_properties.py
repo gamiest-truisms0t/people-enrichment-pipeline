@@ -164,7 +164,10 @@ def test_clean_input_data_salvages_optional_fields_without_raising(
         }
     )
     assert row["email"] is None or ("@" in row["email"] and len(row["email"]) <= EMAIL_MAX_LENGTH)
-    assert row["linkedin_url"] is None or row["linkedin_url"].startswith("linkedin.com/")
+    # A full match, not a substring check: the canonical form is exactly host/in-or-pub/slug.
+    assert row["linkedin_url"] is None or re.fullmatch(
+        r"linkedin\.com/(?:in|pub)/[^/?#\s]+", row["linkedin_url"]
+    )
     assert row["consent"] in (True, False, None)
     assert len(row["notes"]) == len(set(row["notes"]))
     assert all(note.startswith("input.") for note in row["notes"])

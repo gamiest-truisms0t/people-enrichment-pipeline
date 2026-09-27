@@ -699,6 +699,34 @@ and the `person_current` view answered, the IAM check passed, and the analyzer's
 findings were archived by rule. The two manual steps remain the SNS confirmation email and
 `make set-api-key`; the stack is left running.
 
+### Phase 10 — Submission polish (added 2026-09-27) — 🔄 in progress
+
+A Sunday-evening pass over what a reviewer clicks before reading code, plus the one guard
+found blind while measuring the month's cost. Everything costs $0; the only AWS activity
+is the post-merge deploy check on the cached demo file.
+
+1. **Budget on gross usage** (PR A). Measuring September showed $0.031 gross and $0.00
+   net: the budget included credits (the AWS default), so on the Free plan it could never
+   alert before the credits were gone. `cost_types { include_credit = false }`.
+2. **Changelog and releases** (PR A). `CHANGELOG.md` in Keep a Changelog format for every
+   tag since `v0.0.1`; `make release TAG=` publishes the GitHub Release from the section.
+3. **Community files** (PR A). MIT licence, `CONTRIBUTING.md` with the review-before-PR
+   rule and the release steps, `SECURITY.md`, a code of conduct, a pull request template
+   with the checklist, issue templates.
+4. **Repository settings as code** (PR A). `make repo-settings` applies description and
+   topics, branch deletion on merge, secret scanning with push protection, Dependabot
+   alerts and security updates, private vulnerability reporting, CodeQL default setup.
+5. **Reviewer path and `make demo`**, 6. **ER diagram of the data model**, 7. **operations
+   runbook**, 8. **terraform-docs for the modules** (PR B).
+9. **Property-based tests**, 10. **reproducible Lambda zips** (PR C); 11. **erasure
+   command** (PR D) if time allows.
+
+Measured 2026-09-27 with free APIs: Free plan active, $139.97 of credit left, expiry
+2027-03-25; every always-free meter far under its limit (Step Functions 366 of 4,000
+transitions, custom metrics 0.11 of 10 metric-months, alarms 0.29 of 10, Lambda 238
+requests). The one paid API touched was a single Cost Explorer call ($0.01). Also fixed:
+the title of PR #11 had lost its `$0` to shell expansion.
+
 ## 9. Credit and cost budget
 
 **API credits (PDL free plan, per calendar month):**

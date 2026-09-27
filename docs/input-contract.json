@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.2.3",
+  "contract_version": "1.2.4",
   "format": {
     "type": "CSV with a header row",
     "encodings": [

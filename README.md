@@ -8,7 +8,7 @@ which roles they have held. Everything is provisioned with Terraform, nothing is
 from the internet, and the whole thing runs inside AWS Free-plan credits and the
 provider's free monthly credits.
 
-**Status:** `v1.2.3`. Built and verified on a personal AWS Free-plan account on
+**Status:** `v1.2.4`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
 nothing twice on 2026-09-26 to prove reproducibility. [PLAN.md](PLAN.md) is the build plan with
 its phase log; `docs/adr/` holds the decision records; [docs/architecture.md](docs/architecture.md)
@@ -75,7 +75,7 @@ costing anything on the free plan.
 | VPCs assumed present; focus on configuration and security of the other services | outbound HTTPS only, so no VPC is needed; `lambda_vpc_config` attaches the functions to existing subnets when required; one least-privilege role per principal ([Assumptions](#assumptions), [Security](#security)) |
 | Ingestion is our choice | a CSV copied to the landing bucket, with header aliases and a published input contract ([Quick start](#quick-start), [Data guards](#data-guards)) |
 | No public access to the application | no API or function URL, public access blocked at bucket and account level, an IAM-only trigger ([Security](#security)) |
-| Version control with best practices | protected `main`, pull requests with a review before each, conventional commits, tags, pinned actions, secret scanning, tests with a coverage floor in CI ([Development](#development)) |
+| Version control with best practices | protected `main`, pull requests with a review before each and a checklist template, conventional commits, a changelog with a GitHub Release per tag, pinned actions, secret scanning with push protection and CodeQL, repository settings applied from a script, tests with a coverage floor in CI ([Development](#development)) |
 | README on architecture, assumptions, failures and API limits | the three sections of those names |
 
 **Added on our own initiative**
@@ -90,16 +90,19 @@ costing anything on the free plan.
 - **Data quality.** Four layers of data guards, `quality_flags` on every row, a
   `fact_batch_quality` history table, the generated input contract with its dry-run
   command, an optional consent column ([Data guards](#data-guards)).
-- **Observability and cost control.** Nine alarms, a dashboard, an AWS Budget, a $1
-  cost-anomaly subscription, custom metrics kept within the free ten ([Cost](#cost)).
+- **Observability and cost control.** Nine alarms, a dashboard, an AWS Budget on gross
+  usage before credits, a $1 cost-anomaly subscription, custom metrics kept within the free
+  ten, and the cost measured rather than estimated: three cents for September ([Cost](#cost)).
 - **Security beyond "no public access".** Per-principal least privilege verified with IAM
   Access Analyzer, TLS-only and encrypted buckets, an account-level public-access block, an
   append-only raw layer, the API key kept out of Terraform state, an external-access
   analyzer, execution logs without payloads ([Security](#security)).
 - **Delivery.** CI with lint, tests, Terraform validation, tflint, checkov and gitleaks;
   deploys from GitHub Actions through OIDC roles with a plan comment on every pull request,
-  apply on merge gated by a zero-credit run, and daily drift detection; Dependabot;
-  pre-commit hooks that mirror CI ([Development](#development), [ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
+  apply on merge gated by a zero-credit run, and daily drift detection; CodeQL, secret
+  scanning with push protection, Dependabot alerts and the other repository settings
+  applied from a script; a changelog with a GitHub Release per tag; pre-commit hooks that
+  mirror CI ([Development](#development), [ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
 - **Testing.** 149 tests (97 % line coverage, 90 % floor in CI) across pure logic,
   provider contracts on recorded fixtures and handlers on mocked AWS; a smoke test of the
   deployed functions; end-to-end runs that count the batch in Athena and gate every CI
@@ -108,8 +111,9 @@ costing anything on the free plan.
 - **Analytics extras.** Partition projection instead of crawlers, six saved queries, the
   `person_current` view, and a local DuckDB path that answers the same questions without an
   AWS account ([Data model](#data-model-and-the-three-questions)).
-- **Documentation.** Five decision records, an architecture document, and the plan with its
-  phase log and every deviation ([docs/](docs/), [PLAN.md](PLAN.md)).
+- **Documentation.** Five decision records, an architecture document, a changelog, a
+  contributing guide and a security policy, and the plan with its phase log and every
+  deviation ([docs/](docs/), [CHANGELOG.md](CHANGELOG.md), [PLAN.md](PLAN.md)).
 
 ## Quick start
 
@@ -462,10 +466,11 @@ on 2026-09-26:
 
 | | |
 |---|---|
+| **Measured on 2026-09-27** | after more than twenty batches, two destroy-and-rebuild cycles and every CI deploy: $0.031 of gross usage for September (S3 $0.028, Athena $0.003, everything else under a tenth of a cent), $0.00 net after credits, $139.97 of the Free plan's credit left; Step Functions at 366 of 4,000 free transitions, custom metrics at 0.11 of 10 free metric-months, alarms at 0.29 of 10 |
 | **$0 within always-free allowances** | Lambda, Step Functions Standard (4,000 transitions a month), DynamoDB provisioned 5/5, EventBridge, SNS, SSM, Glue Data Catalog, X-Ray, ten CloudWatch alarms, AWS Budgets |
 | **Cents, covered by credits** | S3 (a few MB of Parquet and JSON), Athena (queries here scan KB but bill the 10 MB minimum, about $0.00005 each) |
 | **$0: custom metrics trimmed to nine** | ten are always free; cold-start and derivable counters were removed (they stop counting the month after), everything else lives in `fact_lookup` and `fact_batch_quality` |
-| **$0: cost guards** | the $5 AWS Budget, a $1 daily Cost Anomaly Detection subscription on the default monitor AWS created for the account, IAM Access Analyzer (external access) |
+| **$0: cost guards** | the $5 AWS Budget measured on gross usage before credits (the default nets credits, which on a Free plan account reads $0.00 until the credits are gone, so it could never have alerted), a $1 daily Cost Anomaly Detection subscription on the default monitor AWS created for the account, IAM Access Analyzer (external access) |
 | **Provider** | 100 enrichment + 5 identify credits a month on the free plan; the pipeline caps itself at 70 + 2. Month to date after all runs: about 25 enrichment and 3 identify credits used |
 | **Deliberately avoided** | NAT gateway (~$33 a month idle), customer-managed KMS keys, Secrets Manager, Glue crawlers and jobs, on-demand DynamoDB, unlimited log retention, Express Workflows |
 | **At scale** | Costs grow with rows: provider credits first, then Lambda duration, S3 requests and Athena scans; Step Functions transitions ($0.025 per 1,000) become the largest AWS line above ~40 batches a month |
@@ -517,6 +522,12 @@ scripts/                                         e2e, smoke, idempotency proof, 
   tflint, checkov, and a gitleaks scan. `main` is protected: all three checks must pass and
   the branch must be current; no force pushes. Dependabot watches actions, `uv.lock` and
   Terraform providers weekly.
+- **Repository settings as code.** `make branch-protection` applies
+  `.github/branch-protection.json`; `make repo-settings` (`scripts/repo_settings.sh`)
+  applies the description and topics, branch deletion on merge, secret scanning with push
+  protection, Dependabot alerts and security updates, private vulnerability reporting and
+  CodeQL default setup for Python and the workflows, all through the GitHub API, so a fork
+  gets the same posture in one command. Both are idempotent.
 - **Deploys from CI, no stored keys** ([ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
   Three OIDC roles from the bootstrap stack: a pull request gets a `terraform plan`
   comment rendered without refreshing (the role can only read the state); a merge to
@@ -532,7 +543,11 @@ scripts/                                         e2e, smoke, idempotency proof, 
   `v0.4.0` hardening, `v1.0.0` submission, `v1.1.0` production practices, `v1.2.0` the $0
   pass, `v1.2.x` documentation and test polish). Changes after `v1.0.0` continue on `main`
   and are tagged `v1.x`; the package version is stamped on every curated row as
-  `pipeline_version`.
+  `pipeline_version`. Every version has a section in [CHANGELOG.md](CHANGELOG.md) (Keep a
+  Changelog format), and `make release TAG=v1.2.4` creates the tag if needed and publishes
+  the GitHub Release with that section as its notes. [CONTRIBUTING.md](CONTRIBUTING.md)
+  has the review-before-PR rule and the release steps; the pull request template carries
+  the checklist.
 - **Reproducibility.** On 2026-09-26 the dev stack was destroyed and re-created from
   `make apply`; a follow-up plan shows no drift, and the pipeline ran end to end on the
   fresh stack.

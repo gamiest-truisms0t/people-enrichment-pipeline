@@ -1,0 +1,24 @@
+name: Bug report
+description: The pipeline, the CLI or the Terraform behaves wrongly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or upload, the batch id or execution ARN, and the manifest or email text. No personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The tag, or `pipeline_version` from the curated rows
+    validations:
+      required: true

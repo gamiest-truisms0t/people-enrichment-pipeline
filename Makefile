@@ -18,7 +18,7 @@ ENV ?= dev
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
         e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify \
         idempotency-proof iam-check branch-protection quarantine quarantine-get redrive ci-config \
-        rebuild-all validate input-contract repo-settings release
+        rebuild-all validate input-contract repo-settings release demo tf-docs tf-docs-check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -120,6 +120,15 @@ ci-config: ## Set the GitHub Actions variables and the alert-email secret for th
 query: ## Answer the brief's three questions against local Parquet with DuckDB
 	$(UV) run enrich query --out $(OUT)
 
+demo: ## Offline demo: the sample file through the mock provider, the guards' dry run on a messy export, the three questions
+	rm -rf out/demo
+	@echo "== data/sample/names.csv through the mock provider: match, ambiguity, a rate limit, a cache hit, an invalid row"
+	$(UV) run enrich run --input data/sample/names.csv --provider mock --out out/demo
+	@echo; echo "== data/sample/dirty.csv through the input guards only: what a messy export would get"
+	-$(UV) run enrich validate --input data/sample/dirty.csv
+	@echo; echo "== the brief's three questions, answered from out/demo with DuckDB"
+	$(UV) run enrich query --out out/demo
+
 login: ## Refresh the 12-hour AWS CLI session in the browser
 	aws login --profile $(AWS_PROFILE)
 
@@ -178,6 +187,14 @@ apply: package ## terraform apply for infra/envs/$(ENV)
 
 destroy: ## terraform destroy for infra/envs/$(ENV) (dev buckets are force_destroy)
 	$(TF_ENV) destroy -input=false -auto-approve
+
+TF_DOC_DIRS := infra/bootstrap infra/envs/dev $(wildcard infra/modules/*)
+
+tf-docs: ## Regenerate the requirements/resources/inputs/outputs tables in every stack's and module's README
+	@for d in $(TF_DOC_DIRS); do terraform-docs --config .terraform-docs.yml "$$d" >/dev/null && echo "  $$d/README.md"; done
+
+tf-docs-check: ## Fail if any Terraform README is out of date with its variables and outputs (CI)
+	@for d in $(TF_DOC_DIRS); do terraform-docs --config .terraform-docs.yml --output-check "$$d" || exit 1; done
 
 tf-lint: ## terraform fmt -check, validate, tflint and checkov over infra/
 	terraform fmt -check -recursive infra

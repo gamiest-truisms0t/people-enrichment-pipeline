@@ -746,3 +746,13 @@ professional history is public information; no contact fields are stored.
 | Demo batch, threshold 4 | 27 valid | **17 matched**, 9 not found, 1 cached | 17 | 1 |
 | Idempotency proof (2026-09-26), two uploads | 5 valid | 4 matched + 1 not found, then 5 cached | 4 | 0 |
 | **Month to date** | | | **about 25 of 100** | **3 of 5** |
+
+**Live erasure, 2026-09-27.** The right-to-erasure command was exercised on the dev stack
+against the synthetic mock-provider "John Doe" that the Phase 3 smoke tests had written into
+seven batches, so no real person's data was involved. The dry run listed 7 rows across 7
+batches and the seven operator uploads still holding the row; the real run erased them
+(1 cache item, 50 object versions), rebuilt all seven batches through the deployed
+function (their manifests now carry `pipeline_version` 1.3.0 and one person fewer), and a
+second dry run found nothing. The erased result key has no versions left and the rewritten
+input documents have no noncurrent versions; the tombstone records 7 rows, 7 batches and
+the IAM user that ran it.

@@ -11,6 +11,7 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from enrich_pipeline import __version__
 from enrich_pipeline.enricher import EnrichConfig
@@ -147,6 +148,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     query = sub.add_parser("query", help="answer the brief's questions against local Parquet")
     query.add_argument("--out", default=Path("out"), type=Path)
+
+    erase = sub.add_parser(
+        "erase",
+        help="remove one person from the deployed pipeline's data (right to erasure)",
+    )
+    erase.add_argument("--bucket", required=True, help="the data bucket")
+    erase.add_argument("--table", required=True, help="the DynamoDB state table")
+    erase.add_argument("--rebuild-function", required=True, help="the build-curated function name")
+    erase.add_argument("--person-id", default=None, help="the provider's person id")
+    erase.add_argument("--email", default=None)
+    erase.add_argument("--name", default=None, help='"First Last" as it appears in uploads')
+    erase.add_argument(
+        "--dry-run", action="store_true", help="report what would go, change nothing"
+    )
+    erase.add_argument("--json", action="store_true", help="print the report as JSON")
     return parser
 
 
@@ -281,6 +297,69 @@ def cmd_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def _invoke_rebuild(client: Any, function_name: str, batch_id: str) -> None:
+    """Rebuild one batch's curated tables through the deployed build-curated function."""
+    import json
+
+    response = client.invoke(
+        FunctionName=function_name, Payload=json.dumps({"batch_id": batch_id}).encode("utf-8")
+    )
+    if response.get("FunctionError"):
+        detail = response["Payload"].read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"rebuild of batch {batch_id} failed: {detail}")
+
+
+def cmd_erase(args: argparse.Namespace) -> int:
+    """Right to erasure against the deployed stack; exit 1 when nothing matched."""
+    import json
+
+    import boto3
+
+    from enrich_pipeline.erasure import Eraser, Subject
+
+    try:
+        if args.name:
+            subject = Subject.from_name(args.name, person_id=args.person_id, email=args.email)
+        else:
+            subject = Subject(person_id=args.person_id, email=args.email)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+
+    session = boto3.Session()
+    lambda_client = session.client("lambda")
+    eraser = Eraser(
+        s3=session.client("s3"),
+        table=session.resource("dynamodb").Table(args.table),
+        bucket=args.bucket,
+        rebuild=lambda batch_id: _invoke_rebuild(lambda_client, args.rebuild_function, batch_id),
+    )
+    actor = session.client("sts").get_caller_identity()["Arn"]
+    report = eraser.erase(subject, dry_run=args.dry_run, actor=actor)
+
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+        return 0 if report.batches else 1
+    verb = "would erase" if args.dry_run else "erased"
+    print(
+        f"{verb} {report.rows_erased} row(s) across {len(report.batches)} batch(es); "
+        f"request {report.request_id}"
+    )
+    for batch in report.batches:
+        print(
+            f"  {batch.batch_id}: rows {batch.rows}, rejected rows {batch.rejected_rows}, "
+            f"{len(batch.lookup_keys)} cache key(s), {len(batch.objects)} object(s)"
+            + (", rebuilt" if batch.rebuilt else "")
+        )
+    if not args.dry_run:
+        print(
+            f"cache items deleted: {report.cache_items_deleted}; object versions deleted: "
+            f"{report.versions_deleted}; tombstone erasure#{report.request_id}"
+        )
+    for uri in report.sources:
+        print(f"still holds the person (the operator's upload, not touched): {uri}")
+    return 0 if report.batches else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -290,6 +369,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_query(args)
     if args.command == "validate":
         return cmd_validate(args)
+    if args.command == "erase":
+        return cmd_erase(args)
     parser.print_help()
     return 0
 

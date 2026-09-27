@@ -8,7 +8,7 @@ which roles they have held. Everything is provisioned with Terraform, nothing is
 from the internet, and the whole thing runs inside AWS Free-plan credits and the
 provider's free monthly credits.
 
-**Status:** `v1.2.6`. Built and verified on a personal AWS Free-plan account on
+**Status:** `v1.3.0`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
 nothing twice on 2026-09-26 to prove reproducibility. [PLAN.md](PLAN.md) is the build plan with
 its phase log; `docs/adr/` holds the decision records; [docs/architecture.md](docs/architecture.md)
@@ -97,14 +97,15 @@ costing anything on the free plan.
 - **Security beyond "no public access".** Per-principal least privilege verified with IAM
   Access Analyzer, TLS-only and encrypted buckets, an account-level public-access block, an
   append-only raw layer, the API key kept out of Terraform state, an external-access
-  analyzer, execution logs without payloads ([Security](#security)).
+  analyzer, execution logs without payloads, and a right-to-erasure command that removes a
+  person from every layer, purges object versions and leaves a tombstone ([Security](#security)).
 - **Delivery.** CI with lint, tests, Terraform validation, tflint, checkov and gitleaks;
   deploys from GitHub Actions through OIDC roles with a plan comment on every pull request,
   apply on merge gated by a zero-credit run, and daily drift detection; CodeQL, secret
   scanning with push protection, Dependabot alerts and the other repository settings
   applied from a script; a changelog with a GitHub Release per tag; pre-commit hooks that
   mirror CI ([Development](#development), [ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
-- **Testing.** 165 tests (98 % line coverage, 90 % floor in CI) across pure logic,
+- **Testing.** 172 tests (97 % line coverage, 90 % floor in CI) across pure logic,
   property-based invariants (Hypothesis, which found a crash on a stray carriage return),
   provider contracts on recorded fixtures and handlers on mocked AWS; a smoke test of the
   deployed functions; end-to-end runs that count the batch in Athena and gate every CI
@@ -128,7 +129,7 @@ Nothing here needs an AWS account until the last step.
    not-found after a one-off rate limit, a cache hit on a repeated name and an invalid row;
    the messy export goes through the input guards alone (salvaged fields, rejected rows and
    the reason for each); then DuckDB answers the three questions from the Parquet written
-   under `out/demo`. `make check` runs the 165 tests in under fifteen seconds.
+   under `out/demo`. `make check` runs the 172 tests in under fifteen seconds.
 2. **See the guards on your own file** (one minute). `make validate INPUT=registrants.csv`
    is the same dry run on any export: what would be accepted, salvaged or rejected before
    anything is enriched or spent.
@@ -158,8 +159,8 @@ a People Data Labs free-plan API key for live runs (`make run` works without one
 
 ```bash
 make setup                              # uv sync + git hooks
-make check                              # ruff + 165 tests (unit, property-based, provider contract, mocked-AWS handlers)
-make coverage                           # the same tests with line coverage (98 %; CI enforces a 90 % floor)
+make check                              # ruff + 172 tests (unit, property-based, provider contract, mocked-AWS handlers)
+make coverage                           # the same tests with line coverage (97 %; CI enforces a 90 % floor)
 make demo                               # the sample file through the mock provider, the guards' dry run on dirty.csv, the three questions
 make run                                # data/sample/names.csv through the offline mock provider -> ./out
 make run INPUT=data/sample/dirty.csv    # the data guards at work: salvaged fields, rejected rows, warnings
@@ -457,8 +458,19 @@ Written so a reviewer can disagree with them; each one names its consequence.
 - Retention is a starting point, not a policy: raw responses 90 days, landing uploads 30,
   quarantine 90, Athena results 7, cache entries 90; the curated tables are kept. Enriching
   event registrants in production needs a lawful basis (PDPA or GDPR) and a records-of-
-  processing entry; the optional `consent` column and `require_consent` are the hook for it,
-  and an erasure command is the next step listed under Limitations.
+  processing entry; the optional `consent` column and `require_consent` are the hook for it.
+- **Right to erasure.** `make erase EMAIL=… | NAME="First Last" | PERSON_ID=…` finds every
+  batch that holds the person (by the provider's id, by email or by name, accents and case
+  folded), deletes their lookup results and raw provider responses, rewrites the parsed
+  input and the rejected-rows export without them, drops their cache entries so the next
+  upload cannot bring the profile back for free, rebuilds the curated tables and the
+  manifest of each affected batch through the deployed function, and purges every
+  noncurrent object version (the bucket is versioned, so a plain delete would keep the
+  bytes). A tombstone `erasure#<request id>` in the state table records counts, the actor
+  and a hash of the identity, never the identity. `DRY_RUN=1` previews. The operator's
+  upload in the landing bucket is reported, not touched: it is their file and it expires
+  after 30 days. It runs as a human with the deployer's permissions; the pipeline's own
+  roles cannot delete under `raw/`.
 
 ## Failure handling and API limits
 
@@ -601,7 +613,7 @@ src/enrich_pipeline/
   schema.py transform.py parquet.py              the three tables, one source of truth
   raw_store.py runner.py cli.py                  raw layer, local runner, `enrich run|query`
   aws/{s3,dynamo}.py handlers/                   AWS clients, the three Lambda handlers
-tests/unit tests/handlers tests/fixtures        165 tests, 98 % line coverage; Hypothesis for properties, moto for AWS, respx for HTTP; synthetic fixtures only
+tests/unit tests/handlers tests/fixtures        172 tests, 97 % line coverage; Hypothesis for properties, moto for AWS, respx for HTTP; synthetic fixtures only
 infra/bootstrap infra/envs/dev infra/modules/    state bucket + account block; the dev stack; storage, secrets,
                                                  lambda_function, orchestration, catalog modules
 data/sample data/demo                            mock-provider samples (clean and dirty); public-figure demo lists
@@ -624,7 +636,8 @@ scripts/                                         e2e, smoke, idempotency proof, 
     rate-limit headers, obscured fields.
   - *Handler* (`tests/handlers`): the three Lambda handlers chained the way Step Functions
     runs them, against moto-mocked S3 and DynamoDB: the cache, the budgets, the batch
-    claim, quarantine, the breaker, the quality table.
+    claim, quarantine, the breaker, the quality table, and the erasure command against
+    real handler output with bucket versioning on.
   - *Smoke* (`make smoke`): invokes the three deployed functions directly, in order, on the
     cached demo file, so a broken function is isolated from a broken trigger.
   - *End to end* (`make e2e`): uploads the file, follows the execution EventBridge starts,
@@ -635,8 +648,8 @@ scripts/                                         e2e, smoke, idempotency proof, 
     has a wildcard resource it does not need, the saved queries and the view answer, every
     batch rebuilds from stored results, the state machine definition is valid.
 
-  `make check` runs the first four layers (165 tests, under fifteen seconds); `make coverage`
-  adds line coverage, 98 % at `v1.2.6`, and CI fails below 90 %.
+  `make check` runs the first four layers (172 tests, under fifteen seconds); `make coverage`
+  adds line coverage, 97 % at `v1.3.0`, and CI fails below 90 %.
 - **CI** (GitHub Actions, pinned to commit SHAs): lint + tests, `terraform fmt`/`validate`,
   tflint, checkov, and a gitleaks scan. `main` is protected: all three checks must pass and
   the branch must be current; no force pushes. Dependabot watches actions, `uv.lock` and
@@ -699,9 +712,9 @@ scripts/                                         e2e, smoke, idempotency proof, 
   means small files at thousands of batches. Distributed Map with an S3 item reader and
   Iceberg tables (or periodic compaction) are the paths there.
 - **Next steps** in rough order: the Diffbot fallback for name-only rows; PDL Company
-  Enrichment into a `dim_company` table; an erasure command for a person's rows, raw
-  objects and cache entry; dbt-athena models for analyst marts; LocalStack for offline
-  integration tests.
+  Enrichment into a `dim_company` table; a suppression list so an erased person who
+  registers again is not re-enriched without fresh consent; dbt-athena models for analyst
+  marts; LocalStack for offline integration tests.
 
 ## Appendix: provider findings and live runs
 

@@ -1,6 +1,6 @@
 [project]
 name = "enrich-pipeline"
-version = "1.2.6"
+version = "1.3.0"
 description = "Serverless people-enrichment ETL on AWS: names in, analyst-ready Parquet out."
 readme = "README.md"
 requires-python = ">=3.13"

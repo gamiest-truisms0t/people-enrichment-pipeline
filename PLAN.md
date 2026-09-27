@@ -726,7 +726,15 @@ is the post-merge deploy check on the cached demo file.
    an `InputError` and a quarantined file; fixed with a regression test. The build
    difference between laptop and CI was the console scripts' shebang (the installing
    interpreter's path); the package now drops them and the RECORD lines that hash them.
-11. **Erasure command** (PR D) if time allows.
+    Proof after the merge: a laptop `make plan` against the CI deploy of `v1.2.6` reported
+    "No changes".
+11. **Erasure command** (PR D, `v1.3.0`). `enrich erase` / `make erase` finds every batch
+    holding a person (provider id, email, or accent- and case-folded name), deletes results
+    and raw responses, rewrites the input document and the rejected-rows export, drops the
+    cache entries, rebuilds the curated tables through the deployed function and purges
+    every noncurrent object version; a tombstone records counts and a hash, never the
+    identity. Tested against real handler output in moto with versioning on, including a
+    cached row in a second batch that shares the first batch's raw object.
 
 Measured 2026-09-27 with free APIs: Free plan active, $139.97 of credit left, expiry
 2027-03-25; every always-free meter far under its limit (Step Functions 366 of 4,000

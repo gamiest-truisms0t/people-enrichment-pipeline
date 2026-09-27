@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -123,6 +124,20 @@ def _read_source(
     return decode_text(data)
 
 
+def _records(reader: csv.DictReader) -> Iterator[dict[str | None, str | None]]:
+    """Yield the reader's rows; a csv.Error is a bad file, not a crash.
+
+    The csv module raises on a stray carriage return inside an unquoted field or an
+    unbalanced quote. Found by the property tests: without this, ValidateInput would fail
+    with a traceback instead of quarantining the upload with a reason.
+    """
+    try:
+        yield from reader
+    except csv.Error as exc:
+        # line_num counts the lines read so far; the failing one is the next.
+        raise InputError(f"malformed CSV near line {reader.line_num + 1}: {exc}") from exc
+
+
 def parse_csv(
     source: str | Path | bytes | io.TextIOBase,
     *,
@@ -142,7 +157,11 @@ def parse_csv(
         warnings.append(f"delimiter: {delimiter!r} detected instead of ','")
 
     reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
-    if not reader.fieldnames:
+    try:
+        fieldnames = reader.fieldnames
+    except csv.Error as exc:
+        raise InputError(f"malformed CSV header: {exc}") from exc
+    if not fieldnames:
         raise InputError("input file is empty or has no header row")
 
     mapping, duplicates = _column_mapping(list(reader.fieldnames))
@@ -166,7 +185,7 @@ def parse_csv(
         delimiter=delimiter,
         warnings=warnings,
     )
-    for row_number, record in enumerate(reader, start=1):
+    for row_number, record in enumerate(_records(reader), start=1):
         data = {
             mapping[raw]: (value or "").strip()
             for raw, value in record.items()

@@ -7,6 +7,29 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-09-27
+
+Property-based tests and reproducible Lambda builds.
+
+### Added
+
+- Property-based tests with Hypothesis for the normalisation and guard functions:
+  idempotence, independence from the Unicode form, what a plausible name is, and that any
+  text or byte string either parses or raises `InputError`. Deterministic in CI
+  (`tests/conftest.py`).
+
+### Fixed
+
+- A bare carriage return inside an unquoted CSV field made the csv module raise an error
+  that was not an `InputError`, so `ValidateInput` would have failed with a traceback
+  instead of quarantining the upload with a reason. Found by the property tests.
+
+### Changed
+
+- `make package` is reproducible across machines: the console scripts, whose shebang names
+  the installing interpreter's path, and the RECORD lines that hash them are dropped, so a
+  laptop `make plan` after a CI deploy of the same commit shows no function changes.
+
 ## [1.2.5] - 2026-09-27
 
 Documentation for reviewers and operators.
@@ -218,7 +241,8 @@ Local pipeline.
   writer, local runner and CLI verified with DuckDB; project skeleton with CI pinned to
   commit SHAs.
 
-[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.5...HEAD
+[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.6...HEAD
+[1.2.6]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.2...v1.2.3

@@ -720,8 +720,13 @@ is the post-merge deploy check on the cached demo file.
    all applied and reporting enabled.
 5. **Reviewer path and `make demo`**, 6. **ER diagram of the data model**, 7. **operations
    runbook**, 8. **terraform-docs for the stacks and modules** (PR B, `v1.2.5`).
-9. **Property-based tests**, 10. **reproducible Lambda zips** (PR C); 11. **erasure
-   command** (PR D) if time allows.
+9. **Property-based tests**, 10. **reproducible Lambda zips** (PR C, `v1.2.6`). Hypothesis
+   found a real defect on its first run: a bare carriage return inside an unquoted CSV
+   field made the csv module raise, which escaped `ValidateInput` as a traceback instead of
+   an `InputError` and a quarantined file; fixed with a regression test. The build
+   difference between laptop and CI was the console scripts' shebang (the installing
+   interpreter's path); the package now drops them and the RECORD lines that hash them.
+11. **Erasure command** (PR D) if time allows.
 
 Measured 2026-09-27 with free APIs: Free plan active, $139.97 of credit left, expiry
 2027-03-25; every always-free meter far under its limit (Step Functions 366 of 4,000

@@ -60,11 +60,11 @@ flowchart LR
 | DynamoDB state table | `lookup#` cache (TTL 90 days), `budget#` counters and 402 markers; provisioned 5 RCU / 5 WCU | inside the always-free 25/25 |
 | SSM Parameter Store | The provider key as a SecureString; Terraform creates a placeholder and ignores the value | free |
 | S3 data bucket | `input/`, `raw/` (90-day TTL), `results/`, `curated/`, `manifests/`, `athena-results/` (7-day TTL) | cents, covered by credits |
-| Glue Data Catalog | Database and three tables generated from `schema.py`, partition projection over `batch_date` | 1M objects free |
-| Athena workgroup | Enforced encrypted results, 100 MB scan cutoff per query, five saved queries | $5/TB scanned, 10 MB minimum: cents |
+| Glue Data Catalog | Database, four tables generated from `schema.py` and the `person_current` view, partition projection over `batch_date` | 1M objects free |
+| Athena workgroup | Enforced encrypted results, 100 MB scan cutoff per query, six saved queries | $5/TB scanned, 10 MB minimum: cents |
 | SNS topic | Execution failures, "completed with warnings", alarms | free at this volume |
-| CloudWatch | Log groups (14-day retention), eight alarms, custom metrics; X-Ray tracing | ten alarms free; 15 custom metrics in use, five beyond the free ten (about $1.50 a month, covered by credits) |
-| AWS Budget | $5 a month, alerts at 20 % actual and 100 % forecast | free |
+| CloudWatch | Log groups (14-day retention), nine alarms, one dashboard, nine custom metrics; X-Ray tracing | ten alarms, three dashboards and ten custom metrics free; metrics are prorated by the hour data arrives (0.11 of 10 metric-months used in September) |
+| AWS Budget | $5 a month on gross usage before credits (the default nets credits, which reads $0.00 on a Free plan account), alerts at 20 % actual and 100 % forecast | free |
 
 ## Data flow for one batch
 

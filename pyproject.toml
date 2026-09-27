@@ -1,6 +1,6 @@
 [project]
 name = "enrich-pipeline"
-version = "1.2.5"
+version = "1.2.6"
 description = "Serverless people-enrichment ETL on AWS: names in, analyst-ready Parquet out."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,6 +25,7 @@ dev = [
   "pyarrow>=19",
   "duckdb>=1.2",
   "boto3[crt]>=1.43.102",
+  "hypothesis>=6.100",
 ]
 
 [build-system]

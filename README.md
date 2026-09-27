@@ -8,7 +8,7 @@ which roles they have held. Everything is provisioned with Terraform, nothing is
 from the internet, and the whole thing runs inside AWS Free-plan credits and the
 provider's free monthly credits.
 
-**Status:** `v1.2.4`. Built and verified on a personal AWS Free-plan account on
+**Status:** `v1.2.5`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
 nothing twice on 2026-09-26 to prove reproducibility. [PLAN.md](PLAN.md) is the build plan with
 its phase log; `docs/adr/` holds the decision records; [docs/architecture.md](docs/architecture.md)
@@ -37,17 +37,18 @@ flowchart LR
 ## Contents
 
 1. [Brief coverage and additions](#brief-coverage-and-additions)
-2. [Quick start](#quick-start)
-3. [Architecture](#architecture)
-4. [Data model and the three questions](#data-model-and-the-three-questions)
-5. [Assumptions](#assumptions)
-6. [Failure handling and API limits](#failure-handling-and-api-limits)
-7. [Data guards](#data-guards)
-8. [Security](#security)
-9. [Cost](#cost)
-10. [Development](#development)
-11. [Limitations and next steps](#limitations-and-next-steps)
-12. [Appendix: provider findings and live runs](#appendix-provider-findings-and-live-runs)
+2. [For reviewers: ten minutes](#for-reviewers-ten-minutes)
+3. [Quick start](#quick-start)
+4. [Architecture](#architecture)
+5. [Data model and the three questions](#data-model-and-the-three-questions)
+6. [Assumptions](#assumptions)
+7. [Failure handling and API limits](#failure-handling-and-api-limits)
+8. [Data guards](#data-guards)
+9. [Security](#security)
+10. [Cost](#cost)
+11. [Development](#development)
+12. [Limitations and next steps](#limitations-and-next-steps)
+13. [Appendix: provider findings and live runs](#appendix-provider-findings-and-live-runs)
 
 ## Brief coverage and additions
 
@@ -111,9 +112,39 @@ costing anything on the free plan.
 - **Analytics extras.** Partition projection instead of crawlers, six saved queries, the
   `person_current` view, and a local DuckDB path that answers the same questions without an
   AWS account ([Data model](#data-model-and-the-three-questions)).
-- **Documentation.** Five decision records, an architecture document, a changelog, a
-  contributing guide and a security policy, and the plan with its phase log and every
-  deviation ([docs/](docs/), [CHANGELOG.md](CHANGELOG.md), [PLAN.md](PLAN.md)).
+- **Documentation.** A ten-minute reviewer path and an offline demo, five decision
+  records, an architecture document, an entity diagram of the data model, an operations
+  runbook, generated Terraform module docs, a changelog, a contributing guide and a
+  security policy, and the plan with its phase log and every deviation
+  ([docs/](docs/), [CHANGELOG.md](CHANGELOG.md), [PLAN.md](PLAN.md)).
+
+## For reviewers: ten minutes
+
+Nothing here needs an AWS account until the last step.
+
+1. **Run it** (three minutes, offline). `make setup`, then `make demo`: the sample file goes
+   through the mock provider, which replays a strong match, ambiguous candidates, a
+   not-found after a one-off rate limit, a cache hit on a repeated name and an invalid row;
+   the messy export goes through the input guards alone (salvaged fields, rejected rows and
+   the reason for each); then DuckDB answers the three questions from the Parquet written
+   under `out/demo`. `make check` runs the 149 tests in about ten seconds.
+2. **See the guards on your own file** (one minute). `make validate INPUT=registrants.csv`
+   is the same dry run on any export: what would be accepted, salvaged or rejected before
+   anything is enriched or spent.
+3. **Read** (four minutes). The [brief coverage table](#brief-coverage-and-additions)
+   above, the [step-by-step flow](#architecture), [failure handling and API limits](#failure-handling-and-api-limits),
+   and the [runbook](docs/runbook.md), which is what an operator opens when an alert
+   arrives. The five [decision records](docs/adr/) hold the reasoning behind the provider,
+   the orchestrator, the storage format, the idempotency design and the CI deploys.
+4. **Check the process** (two minutes, on GitHub). Every change since the first commit is a
+   reviewed pull request with green checks and, for infrastructure, a `terraform plan`
+   comment; each tag has a [release](https://github.com/gamiest-truisms0t/people-enrichment-pipeline/releases)
+   with notes from the [changelog](CHANGELOG.md); the Actions tab shows the deploy gate on
+   every merge and the daily drift check; the Security tab shows CodeQL, secret scanning
+   and Dependabot.
+5. **With an AWS account** (twenty minutes and a few cents of credit): the
+   [deploy steps](#deploy-to-aws) below, then `make e2e` and `make athena-verify` against
+   the real stack.
 
 ## Quick start
 
@@ -128,6 +159,7 @@ a People Data Labs free-plan API key for live runs (`make run` works without one
 make setup                              # uv sync + git hooks
 make check                              # ruff + 149 tests (unit, provider contract, mocked-AWS handlers)
 make coverage                           # the same tests with line coverage (97 %; CI enforces a 90 % floor)
+make demo                               # the sample file through the mock provider, the guards' dry run on dirty.csv, the three questions
 make run                                # data/sample/names.csv through the offline mock provider -> ./out
 make run INPUT=data/sample/dirty.csv    # the data guards at work: salvaged fields, rejected rows, warnings
 make validate INPUT=registrants.csv     # dry-run the input contract on a file before uploading it
@@ -231,6 +263,87 @@ Glue tables (`make glue-columns`, drift fails a test) all derive from it.
 Every row also carries `pipeline_version`, the package version that produced it, so a
 rebuild after a transform change (`make rebuild-all`, no provider calls) is visible in the
 data.
+
+```mermaid
+erDiagram
+    FACT_LOOKUP ||--o| DIM_PERSON : "a matched or cached row yields"
+    DIM_PERSON ||--o{ FACT_EMPLOYMENT : "held"
+    FACT_BATCH_QUALITY ||--|{ FACT_LOOKUP : "summarises the rows of"
+    DIM_PERSON }o--|| PERSON_CURRENT : "latest batch per person (view)"
+
+    FACT_LOOKUP {
+        string batch_id PK "partition: batch_date"
+        int row_number PK
+        string lookup_key "cache key of the strongest identifier"
+        string status "one of eight, see failure handling"
+        string lookup_method
+        string person_id FK "null unless matched or cached"
+        double likelihood
+        int http_status
+        int credits_consumed
+        string raw_ref "raw/ object holding the provider response"
+        array quality_flags
+        string pipeline_version
+        timestamp requested_at
+    }
+    DIM_PERSON {
+        string person_id PK "provider's stable id"
+        string batch_id PK
+        int input_row_number FK
+        string full_name
+        string current_job_title
+        string current_company_name
+        string location_country
+        string linkedin_url
+        double match_likelihood
+        string lookup_method
+        array quality_flags
+        string pipeline_version
+        timestamp enriched_at
+    }
+    FACT_EMPLOYMENT {
+        string person_id FK
+        string batch_id FK
+        int sequence_no PK "0 is the current position"
+        string company_name
+        string company_industry
+        string title_name
+        string title_role
+        array title_levels
+        string start_date "as delivered: YYYY, YYYY-MM or YYYY-MM-DD"
+        string end_date
+        boolean is_current
+        string pipeline_version
+    }
+    FACT_BATCH_QUALITY {
+        string batch_id PK
+        int rows_valid
+        int rows_invalid
+        int matched
+        int not_found
+        int budget_deferred
+        int error
+        double match_rate "(matched + cached) / rows_valid"
+        int flagged_matches
+        array warnings
+        int credits_spent
+        int persons
+        timestamp built_at
+    }
+    PERSON_CURRENT {
+        string person_id PK
+        string full_name
+        string current_job_title
+        string current_company_name
+        string batch_id "the latest batch that saw this person"
+    }
+```
+
+`fact_lookup` is the audit trail: every input row, valid or not, gets exactly one row per
+batch. `dim_person` and `fact_employment` exist only for matched rows and are per-batch
+snapshots; `person_current` collapses them to the latest row per person across every
+upload. `fact_batch_quality` is the manifest's quality report as a table (a subset of its
+columns is shown).
 
 The saved Athena queries (also in [docs/athena_queries.sql](docs/athena_queries.sql)):
 
@@ -528,6 +641,13 @@ scripts/                                         e2e, smoke, idempotency proof, 
   protection, Dependabot alerts and security updates, private vulnerability reporting and
   CodeQL default setup for Python and the workflows, all through the GitHub API, so a fork
   gets the same posture in one command. Both are idempotent.
+- **Operations.** [docs/runbook.md](docs/runbook.md) maps every alert (the two execution
+  emails, the nine alarms, an Access Analyzer finding, the budget and anomaly emails, a
+  failed drift check) to what it means, the first command to run and the way back, and
+  covers the routine jobs: key rotation, reprocessing, quarantine, teardown and rebuild.
+- **Terraform documentation.** Each stack and module has a README whose requirements,
+  resources, inputs and outputs tables are generated by terraform-docs (`make tf-docs`,
+  also a pre-commit hook); `make tf-docs-check` fails CI when one is stale.
 - **Deploys from CI, no stored keys** ([ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
   Three OIDC roles from the bootstrap stack: a pull request gets a `terraform plan`
   comment rendered without refreshing (the role can only read the state); a merge to

@@ -1,0 +1,18 @@
+name: Feature request
+description: A change to the pipeline, the data model or the tooling
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What an analyst or an operator cannot do today
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The change, and what it would cost on the free plans (see the README's Cost section)
+    validations:
+      required: true

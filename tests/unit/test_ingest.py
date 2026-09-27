@@ -40,6 +40,16 @@ def test_parse_csv_reports_invalid_rows_without_aborting() -> None:
     assert parsed.invalid[0].raw["last_name"] == "Nguyen"
 
 
+def test_parse_csv_rejects_a_malformed_csv_instead_of_crashing() -> None:
+    # Found by Hypothesis (tests/unit/test_properties.py): a bare carriage return inside
+    # an unquoted field makes the csv module raise; that must be an InputError so the
+    # upload is quarantined with a reason.
+    with pytest.raises(InputError, match=r"malformed CSV near line 2: new-line character"):
+        parse_csv(b"first_name,last_name\nJohn,Doe\r\x01")
+    with pytest.raises(InputError, match=r"malformed CSV header"):
+        parse_csv(io.StringIO("first_name\rlast_name\nJohn,Doe\n"))
+
+
 def test_parse_csv_bytes_with_semicolons_and_windows_1252() -> None:
     data = "first_name;last_name;company\nJosé;García;Acme\n".encode("cp1252")
     parsed = parse_csv(data)

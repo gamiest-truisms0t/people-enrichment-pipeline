@@ -516,7 +516,7 @@ wheels = [
 
 [[package]]
 name = "enrich-pipeline"
-version = "1.2.3"
+version = "1.2.4"
 source = { editable = "." }
 dependencies = [
     { name = "aws-lambda-powertools" },

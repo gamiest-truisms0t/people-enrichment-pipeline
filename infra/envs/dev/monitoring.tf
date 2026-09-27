@@ -59,6 +59,13 @@ resource "aws_budgets_budget" "monthly_spend" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
+  # Measure gross usage. The default nets credits, and on a Free plan account every charge
+  # is offset by a credit, so the budget read $0.00 by construction and could never alert
+  # before the credits were gone (measured 2026-09-27: $0.031 gross, $0.00 net).
+  cost_types {
+    include_credit = false
+  }
+
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 20

@@ -18,7 +18,7 @@ ENV ?= dev
         package bootstrap init plan apply destroy tf-lint set-api-key upload smoke \
         e2e executions rebuild asl-validate report record-fixtures glue-columns athena-verify \
         idempotency-proof iam-check branch-protection quarantine quarantine-get redrive ci-config \
-        rebuild-all validate input-contract
+        rebuild-all validate input-contract repo-settings release
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -82,6 +82,12 @@ iam-check: ## List wildcard-resource statements and run IAM Access Analyzer over
 branch-protection: ## Require the CI checks on main (.github/branch-protection.json) via the GitHub API
 	gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input .github/branch-protection.json \
 	  --jq '"required checks: " + (.required_status_checks.contexts | join(", "))'
+
+repo-settings: ## Apply the repository's GitHub settings (description, topics, security features, CodeQL) via the API
+	scripts/repo_settings.sh
+
+release: ## Tag TAG=vX.Y.Z if needed, push it and publish the GitHub Release from its CHANGELOG section
+	scripts/release.sh $(TAG)
 
 quarantine: ## List quarantined uploads (with their rejection reason) and rejected-row exports
 	scripts/quarantine.sh list

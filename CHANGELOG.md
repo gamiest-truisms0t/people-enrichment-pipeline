@@ -7,6 +7,23 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-09-27
+
+Documentation for reviewers and operators.
+
+### Added
+
+- A ten-minute reviewer path at the top of the README and `make demo`, which runs the
+  sample file through the mock provider offline, dry-runs the guards on the messy sample
+  and answers the three questions with DuckDB.
+- An entity diagram of the four curated tables and the `person_current` view.
+- `docs/runbook.md`: every alert mapped to its meaning, the first command to run and the
+  way back, plus the routine operations (key rotation, reprocessing, quarantine, teardown
+  and rebuild).
+- terraform-docs: each stack and module has a README with generated requirements,
+  resources, inputs and outputs tables (`make tf-docs`, pre-commit hook, `make tf-docs-check`
+  in CI with a checksum-pinned binary).
+
 ## [1.2.4] - 2026-09-27
 
 Repository surface for reviewers, and the one cost guard found blind while measuring.
@@ -201,7 +218,8 @@ Local pipeline.
   writer, local runner and CLI verified with DuckDB; project skeleton with CI pinned to
   commit SHAs.
 
-[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.4...HEAD
+[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.5...HEAD
+[1.2.5]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.1...v1.2.2

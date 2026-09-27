@@ -70,6 +70,17 @@ jobs:
           for d in infra/bootstrap infra/envs/dev infra/modules/*; do
             tflint --chdir="$d" --config "$GITHUB_WORKSPACE/.tflint.hcl"
           done
+      - name: terraform-docs (stack and module READMEs are current)
+        env:
+          TFDOCS_VERSION: v0.24.0
+          TFDOCS_SHA256: 9005daf969de0b50134493a2c00078b49f5f5b39d021cda7c89bf4d4f3d776d3
+        run: |
+          curl -sSLo terraform-docs.tar.gz \
+            "https://github.com/terraform-docs/terraform-docs/releases/download/${TFDOCS_VERSION}/terraform-docs-${TFDOCS_VERSION}-linux-amd64.tar.gz"
+          echo "${TFDOCS_SHA256}  terraform-docs.tar.gz" | sha256sum -c -
+          tar -xzf terraform-docs.tar.gz terraform-docs
+          sudo install -m 0755 terraform-docs /usr/local/bin/terraform-docs
+          make tf-docs-check
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: checkov
         run: uvx checkov --config-file .checkov.yaml -d infra

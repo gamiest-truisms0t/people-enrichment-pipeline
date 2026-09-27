@@ -734,7 +734,13 @@ is the post-merge deploy check on the cached demo file.
     cache entries, rebuilds the curated tables through the deployed function and purges
     every noncurrent object version; a tombstone records counts and a hash, never the
     identity. Tested against real handler output in moto with versioning on, including a
-    cached row in a second batch that shares the first batch's raw object.
+    cached row in a second batch that shares the first batch's raw object. Live proof
+    2026-09-27 on the synthetic mock-provider "John Doe" from the Phase 3 smoke batches:
+    `make erase NAME="John Doe" DRY_RUN=1` listed 7 rows across 7 batches; the real run
+    erased them, deleted 1 cache item and 50 object versions, rebuilt all 7 batches
+    (manifests now `pipeline_version` 1.3.0 with one person fewer), and a second dry run
+    found nothing; the erased result key has no versions left and the rewritten input
+    documents have no noncurrent versions. No real person's data was touched.
 
 Measured 2026-09-27 with free APIs: Free plan active, $139.97 of credit left, expiry
 2027-03-25; every always-free meter far under its limit (Step Functions 366 of 4,000

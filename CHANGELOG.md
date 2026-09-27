@@ -7,6 +7,13 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+### Verified
+
+- Live erasure on the dev stack (2026-09-27): the synthetic mock-provider "John Doe" from
+  seven smoke-test batches was removed end to end (7 rows, 1 cache item, 50 object
+  versions, 7 rebuilds); a second dry run found nothing. Recorded in the README appendix
+  and PLAN.md.
+
 ## [1.3.0] - 2026-09-27
 
 Right to erasure.

@@ -8,7 +8,7 @@ which roles they have held. Everything is provisioned with Terraform, nothing is
 from the internet, and the whole thing runs inside AWS Free-plan credits and the
 provider's free monthly credits.
 
-**Status:** `v1.3.0`. Built and verified on a personal AWS Free-plan account on
+**Status:** `v1.3.1`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
 nothing twice on 2026-09-26 to prove reproducibility; every change since has deployed from
 CI, and the last live exercise was the erasure run on 2026-09-27. [PLAN.md](PLAN.md) is the build plan with
@@ -691,7 +691,7 @@ CODE_OF_CONDUCT.md LICENSE
     batch rebuilds from stored results, the state machine definition is valid.
 
   `make check` runs the first four layers (172 tests, under fifteen seconds); `make coverage`
-  adds line coverage, 97 % at `v1.3.0`, and CI fails below 90 %.
+  adds line coverage, 97 % at `v1.3.1`, and CI fails below 90 %.
 - **CI** (GitHub Actions, pinned to commit SHAs): lint + tests with the 90 % coverage floor
   and a summary on every run, `terraform fmt`/`validate`, tflint, checkov, the terraform-docs
   staleness check, and a gitleaks scan. The plan workflow also validates the state-machine
@@ -731,10 +731,11 @@ CODE_OF_CONDUCT.md LICENSE
   `v0.4.0` hardening, `v1.0.0` submission, `v1.1.0` production practices, `v1.2.0` the $0
   pass, `v1.2.1` to `v1.2.3` documentation and test polish, `v1.2.4` repository surface,
   `v1.2.5` reviewer and operator docs, `v1.2.6` property tests and reproducible builds,
-  `v1.3.0` right to erasure). Changes after `v1.0.0` continue on `main` and are tagged
+  `v1.3.0` right to erasure, `v1.3.1` the submission snapshot). Changes after `v1.0.0`
+  continue on `main` and are tagged
   `v1.x`; the package version is stamped on every curated row as `pipeline_version`. Every
   version has a section in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format), and
-  `make release TAG=v1.3.0` creates the tag if needed and publishes
+  `make release TAG=v1.3.1` creates the tag if needed and publishes
   the GitHub Release with that section as its notes. [CONTRIBUTING.md](CONTRIBUTING.md)
   has the review-before-PR rule and the release steps; the pull request template carries
   the checklist.

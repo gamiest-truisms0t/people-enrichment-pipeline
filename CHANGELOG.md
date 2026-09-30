@@ -7,6 +7,10 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-30
+
+Documentation and tooling for submission; no pipeline behaviour changes.
+
 ### Changed
 
 - README inventory pass before submission: the repository layout now lists every module,
@@ -279,7 +283,8 @@ Local pipeline.
   writer, local runner and CLI verified with DuckDB; project skeleton with CI pinned to
   commit SHAs.
 
-[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.6...v1.3.0
 [1.2.6]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/gamiest-truisms0t/people-enrichment-pipeline/compare/v1.2.4...v1.2.5

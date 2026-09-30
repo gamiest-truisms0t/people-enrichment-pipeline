@@ -7,6 +7,17 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+### Changed
+
+- README inventory pass before submission: the repository layout now lists every module,
+  script, workflow and root file; a grouped catalogue of the 47 make targets; the
+  repository-side security controls; the CSV-syntax guard; the current checkov count (382);
+  six saved queries plus the view wherever the older count remained; the full tag history.
+
+### Fixed
+
+- `make help` omitted `e2e`: its pattern excluded digits in target names.
+
 ### Verified
 
 - Live erasure on the dev stack (2026-09-27): the synthetic mock-provider "John Doe" from

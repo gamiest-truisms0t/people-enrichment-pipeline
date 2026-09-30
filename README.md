@@ -10,7 +10,8 @@ provider's free monthly credits.
 
 **Status:** `v1.3.0`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
-nothing twice on 2026-09-26 to prove reproducibility. [PLAN.md](PLAN.md) is the build plan with
+nothing twice on 2026-09-26 to prove reproducibility; every change since has deployed from
+CI, and the last live exercise was the erasure run on 2026-09-27. [PLAN.md](PLAN.md) is the build plan with
 its phase log; `docs/adr/` holds the decision records; [docs/architecture.md](docs/architecture.md)
 has the component and IAM detail.
 
@@ -110,7 +111,8 @@ costing anything on the free plan.
   provider contracts on recorded fixtures and handlers on mocked AWS; a smoke test of the
   deployed functions; end-to-end runs that count the batch in Athena and gate every CI
   deploy; the idempotency proof; the IAM check; state-machine validation on every pull
-  request; two destroy-and-rebuild proofs ([Development](#development)).
+  request; two destroy-and-rebuild proofs; a laptop plan that matches the CI deploy byte
+  for byte; a live erasure run ([Development](#development)).
 - **Analytics extras.** Partition projection instead of crawlers, six saved queries, the
   `person_current` view, and a local DuckDB path that answers the same questions without an
   AWS account ([Data model](#data-model-and-the-three-questions)).
@@ -153,7 +155,9 @@ Nothing here needs an AWS account until the last step.
 **Prerequisites:** Terraform ≥ 1.16, AWS CLI v2, `uv`, `jq`, GNU make; an AWS account
 (a new account on the Free plan cannot be charged) with a CLI profile named `enrich-dev`
 (`aws login --profile enrich-dev` gives 12-hour browser-based sessions, no access keys);
-a People Data Labs free-plan API key for live runs (`make run` works without one).
+a People Data Labs free-plan API key for live runs (`make run` works without one). On macOS,
+`scripts/setup-tools.sh` installs the tools (Homebrew, Terraform, the AWS CLI, `gh`, tflint,
+gitleaks, `uv`, checkov, pre-commit) and is safe to re-run.
 
 ### Locally, no AWS account
 
@@ -178,8 +182,8 @@ make init           # point infra/envs/dev at the state bucket (native S3 lockin
 make apply          # package the Lambda code (arm64 wheels from uv.lock) and create ~80 resources
                     # -> confirm the SNS subscription email that arrives
 make set-api-key    # push ~/.config/people-enrichment/pdl_api_key into the SSM SecureString
-make e2e INPUT=data/demo/idempotency.csv   # upload 5 public figures (about 4 credits), follow the execution, count the batch in Athena
-make athena-verify  # run the five saved queries and print the first rows
+make e2e            # upload the 5-row demo file (about 4 credits the first time, 0 after: the rows are then cached), follow the execution, count the batch in Athena
+make athena-verify  # run the six saved queries and the person_current view, print the first rows
 make destroy        # tear everything down (dev buckets are force_destroy)
 ```
 
@@ -188,10 +192,18 @@ The bootstrap stack keeps its own state locally in `infra/bootstrap/terraform.tf
 machine run `terraform -chdir=infra/bootstrap import` for the existing bucket before
 `make init`. Every other stack stores state in the bucket with native S3 locking.
 
+For CI deploys from your own fork, three more one-off commands after `make bootstrap`:
+`make ci-config` (the Actions variables and the alert-email secret), `make branch-protection`
+(the three required checks on `main`) and `make repo-settings` (description, topics, secret
+scanning, push protection, Dependabot, CodeQL); see [Development](#development).
+
 Where to look afterwards: the Step Functions console shows one execution per upload; the
-data bucket holds `raw/`, `results/`, `curated/` and `manifests/<batch_id>.json`; the
-Athena workgroup `people-enrichment-dev-analytics` has the saved queries; the alerts email
-receives failures, batches completed with warnings, and alarm notifications.
+data bucket holds `input/`, `raw/`, `results/`, `curated/`, `manifests/<batch_id>.json` and
+`quarantine/`; the Athena workgroup `people-enrichment-dev-analytics` has the saved queries;
+the CloudWatch dashboard `people-enrichment-dev-pipeline` shows executions, rows and
+credits; the alerts email receives failures, batches completed with warnings, and alarm
+notifications. From the terminal, `make executions` lists recent runs and
+`make report BATCH=<batch_id>` shows every row's outcome.
 
 ## Architecture
 
@@ -200,7 +212,7 @@ receives failures, batches completed with warnings, and alarm notifications.
 | S3 landing bucket | `incoming/<folder>/<file>.csv` uploads start the pipeline; objects expire after 30 days |
 | EventBridge rule | `Object Created` under `incoming/` → `StartExecution`; undeliverable events go to a dead-letter queue |
 | Step Functions Standard | `ValidateInput` → `EnrichRows` (inline Map, `MaxConcurrency` 1) → `BuildCurated` → summarise; failures and warnings to SNS |
-| 3 Lambda functions (Python 3.13, arm64) | `validate-input` (guards, parsing), `enrich` (matching ladder, cache, budget, provider call), `build-curated` (reconciliation, output guards, Parquet) |
+| 3 Lambda functions (Python 3.13, arm64) | `validate-input` (guards, parsing), `enrich` (matching ladder, cache, budget, provider call; the API key comes from SSM through Powertools with a five-minute cache), `build-curated` (reconciliation, output guards, Parquet through the AWS SDK for pandas layer). Structured JSON logs and EMF metrics through Powertools, X-Ray tracing, one zip built reproducibly from `uv.lock` |
 | DynamoDB state table | idempotency cache `lookup#…` (TTL 90 days), monthly and per-batch credit counters `budget#…`, batch claims `batch#…` (one execution per upload), the provider circuit breaker `breaker#…`; provisioned 5/5 |
 | SSM SecureString | the provider API key; Terraform creates a placeholder and ignores the value |
 | S3 data bucket | `input/`, `raw/` (90-day TTL), `results/`, `curated/<table>/batch_date=…/<batch_id>.parquet`, `manifests/`, `quarantine/` (rejected uploads and rejected-row exports, 90-day TTL), `athena-results/` (7-day TTL) |
@@ -376,7 +388,7 @@ Query 4 is the operational view (status, method, credits per batch), query 6 tre
 **latest snapshot per person**, because `dim_person` is a per-batch snapshot: a person
 uploaded twice appears once per batch. The same logic is also a Glue view,
 **`person_current`**, created by Terraform, so `SELECT * FROM person_current` answers
-"who are the individuals" across every upload with one row per person. `make athena-verify` runs all five; on 2026-09-26,
+"who are the individuals" across every upload with one row per person. `make athena-verify` runs all six and the view; on 2026-09-26,
 on the rebuilt stack, they each scanned 9 to 34 KB in under 1.4 s. The largest live batch answers question 1
 with 17 public-company executives, and questions 2 and 3 with their dated positions and
 titles (for example Nasdaq, executive vice president of corporate strategy, VP level).
@@ -441,9 +453,12 @@ Written so a reviewer can disagree with them; each one names its consequence.
 - The functions run outside a VPC: they make outbound HTTPS calls only, and a VPC attachment
   would need a NAT gateway, which is not free. `lambda_vpc_config` attaches them to existing
   private subnets when a network boundary is required.
-- Everything is created by Terraform except three things: the value of the provider API key
-  (set out of band into SSM with `make set-api-key`, never in git or state), the click on
-  the SNS confirmation email, and the GitHub Actions variables that `make ci-config` writes.
+- Everything in AWS is created by Terraform except two things: the value of the provider API
+  key (set out of band into SSM with `make set-api-key`, never in git or state) and the
+  click on the SNS confirmation email. The GitHub side is scripted rather than Terraformed:
+  `make ci-config` writes the Actions variables and the alert-email secret,
+  `make branch-protection` applies the required checks, `make repo-settings` the
+  description, topics and security features.
 - Deploys come from `main` through GitHub Actions and OIDC roles. A laptop `make apply`
   still works and is reported by the daily drift check the next morning.
 
@@ -528,7 +543,7 @@ under Phase 6b in PLAN.md).
 
 | Layer | What is checked | What happens |
 |---|---|---|
-| **File** | size (`max_input_bytes`, 5 MB), encoding (UTF-8, UTF-16 with BOM; anything else read as Windows-1252), delimiter (`,` `;` tab `\|`), required header, extra or duplicate columns | recoverable oddities are accepted and recorded as warnings; a file with no usable header, no rows, only rejected rows, or more than `max_invalid_fraction` (50 %) rejected rows **fails the batch** with the reason in the notification email, because it almost certainly is not the layout the header claims |
+| **File** | size (`max_input_bytes`, 5 MB), encoding (UTF-8, UTF-16 with BOM; anything else read as Windows-1252), NUL bytes, delimiter (`,` `;` tab `\|`), CSV syntax (a stray carriage return, an unbalanced quote), required header, extra or duplicate columns | recoverable oddities are accepted and recorded as warnings; a file with no usable header, no rows, only rejected rows, malformed CSV syntax (reported with the line number), or more than `max_invalid_fraction` (50 %) rejected rows **fails the batch** with the reason in the notification email, because it almost certainly is not the layout the header claims |
 | **Row** | names: non-empty, no digits, has letters, not an email address, not a placeholder (`test`, `n/a`, `unknown`, a repeated header row…), ≤ 100 chars; email shape; LinkedIn URL shape; company/location placeholders (`self-employed`, `student`, `n/a`…) and length; an optional `consent` column (`opt_in`, `marketing_consent`, …) | a bad **name** rejects the row as `invalid_input` with the field and reason (flag `input.rejected`); a bad **optional** field is dropped and the row continues with a note (`input.email_invalid`, `input.company_placeholder`, …) so a person can still be found by name; an explicit consent **no** rejects the row before any provider call, and `require_consent` rejects a missing answer too |
 | **Match** | the matched profile's surname vs the input, missing name or current job, no employment history, likelihood sitting on the threshold, malformed or reversed employment dates | the match is kept and flagged (`match.name_mismatch`, `match.sparse_profile`, `match.likelihood_at_floor`, …) in `quality_flags` on `dim_person` and `fact_lookup`, so analysts can filter or review |
 | **Output** | one `fact_lookup` row per input row, unique keys, no orphan employment rows, Parquet row counts and columns re-read after writing | the curated step fails rather than publish inconsistent tables |
@@ -585,8 +600,15 @@ on 2026-09-26:
 - Execution history is logged without state payloads; the Powertools logs carry ids and
   counts, never names or emails. Root has MFA and no access keys; daily work uses an IAM
   user with browser-based CLI sessions.
-- checkov passes 299 checks over `infra/`; every skip is listed with its reason in
-  `.checkov.yaml` or inline next to the resource.
+- checkov passes 382 checks over `infra/` with one documented skip, and tflint and
+  `terraform validate` run on every commit and pull request; every skip is listed with its
+  reason in `.checkov.yaml` or inline next to the resource.
+- On the repository side: GitHub secret scanning with push protection, CodeQL on every pull
+  request and weekly (Python and the workflows), Dependabot alerts and security updates,
+  private vulnerability reporting behind a [security policy](SECURITY.md), gitleaks in
+  pre-commit and CI, Actions pinned to commit SHAs, and OIDC roles instead of stored AWS
+  keys. A person's data can be removed on request with `make erase`
+  ([data and privacy](#assumptions)).
 
 ## Cost
 
@@ -597,7 +619,7 @@ on 2026-09-26:
 | **Cents, covered by credits** | S3 (a few MB of Parquet and JSON), Athena (queries here scan KB but bill the 10 MB minimum, about $0.00005 each) |
 | **$0: custom metrics trimmed to nine** | ten are always free; cold-start and derivable counters were removed (they stop counting the month after), everything else lives in `fact_lookup` and `fact_batch_quality` |
 | **$0: cost guards** | the $5 AWS Budget measured on gross usage before credits (the default nets credits, which on a Free plan account reads $0.00 until the credits are gone, so it could never have alerted), a $1 daily Cost Anomaly Detection subscription on the default monitor AWS created for the account, IAM Access Analyzer (external access) |
-| **Provider** | 100 enrichment + 5 identify credits a month on the free plan; the pipeline caps itself at 70 + 2. Month to date after all runs: about 25 enrichment and 3 identify credits used |
+| **Provider** | 100 enrichment + 5 identify credits a month on the free plan; the pipeline caps itself at 70 + 2. September 2026 after all runs: about 25 enrichment and 3 identify credits used |
 | **Deliberately avoided** | NAT gateway (~$33 a month idle), customer-managed KMS keys, Secrets Manager, Glue crawlers and jobs, on-demand DynamoDB, unlimited log retention, Express Workflows |
 | **At scale** | Costs grow with rows: provider credits first, then Lambda duration, S3 requests and Athena scans; Step Functions transitions ($0.025 per 1,000) become the largest AWS line above ~40 batches a month |
 
@@ -608,18 +630,38 @@ the state bucket and the account-level public access block stay (bootstrap stack
 
 ```
 src/enrich_pipeline/
-  models.py normalize.py ingest.py guards.py    input rows, keys, CSV parsing, data guards
-  enricher.py providers/{base,pdl,mock}.py       matching ladder, cache/budget protocols, provider adapters
-  schema.py transform.py parquet.py              the three tables, one source of truth
-  raw_store.py runner.py cli.py                  raw layer, local runner, `enrich run|query`
-  aws/{s3,dynamo}.py handlers/                   AWS clients, the three Lambda handlers
+  models.py normalize.py ingest.py guards.py    input rows, lookup keys, CSV parsing, the data guards
+  enricher.py budget_rules.py breaker.py         matching ladder, credit ceilings and batch cap, circuit breaker
+  providers/{base,pdl,mock}.py                   provider protocol, People Data Labs adapter, offline mock with fixtures
+  schema.py transform.py parquet.py              the four tables from one source of truth, Parquet writer with read-back checks
+  raw_store.py runner.py cli.py erasure.py       raw layer, local runner, `enrich run|validate|query|erase`, right to erasure
+  aws/{s3,dynamo}.py handlers/                   AWS clients (cache, budgets, batch claims, breaker), the three Lambda handlers
 tests/unit tests/handlers tests/fixtures        172 tests, 97 % line coverage; Hypothesis for properties, moto for AWS, respx for HTTP; synthetic fixtures only
-infra/bootstrap infra/envs/dev infra/modules/    state bucket + account block; the dev stack; storage, secrets,
-                                                 lambda_function, orchestration, catalog modules
+infra/bootstrap infra/envs/dev infra/modules/    state bucket, account block and OIDC roles; the dev stack (33 inputs); storage, secrets,
+                                                 lambda_function, orchestration, catalog modules; a generated README in each directory
 data/sample data/demo                            mock-provider samples (clean and dirty); public-figure demo lists
-docs/adr docs/architecture.md docs/athena_queries.sql
-scripts/                                         e2e, smoke, idempotency proof, IAM check, Athena verify, fixtures
+docs/                                            five ADRs, architecture.md, runbook.md, athena_queries.sql, input-contract.json
+scripts/                                         e2e, smoke, idempotency proof, IAM check, Athena verify, quarantine, rebuild-all, batch report,
+                                                 input contract, Glue columns, fixtures, CI tfvars, repository settings, release, tool setup
+.github/                                         ci, terraform-plan, terraform-apply and terraform-drift workflows; Dependabot; branch
+                                                 protection; pull request and issue templates
+CHANGELOG.md CONTRIBUTING.md SECURITY.md         changelog, contributing guide, security policy, code of conduct, MIT licence
+CODE_OF_CONDUCT.md LICENSE
+.pre-commit-config.yaml .checkov.yaml            hooks, checkov skips, tflint rules, terraform-docs settings
+.tflint.hcl .terraform-docs.yml
 ```
+
+- **Everything is a make target** (`make help` lists them; each is safe to run again):
+
+  | Purpose | Targets |
+  |---|---|
+  | Develop | `setup`, `check`, `lint`, `fmt`, `test`, `coverage`, `precommit`, `clean` |
+  | Run offline | `demo`, `run`, `validate`, `query`, `record-fixtures` |
+  | Keep generated files current | `input-contract`, `glue-columns`, `tf-docs`, `tf-docs-check`, `tf-lint`, `asl-validate` |
+  | Provision | `login`, `whoami`, `bootstrap`, `init`, `package`, `plan`, `apply`, `destroy`, `set-api-key` |
+  | Operate | `upload`, `executions`, `report`, `rebuild`, `rebuild-all`, `quarantine`, `quarantine-get`, `redrive`, `erase` |
+  | Prove | `smoke`, `e2e`, `idempotency-proof`, `iam-check`, `athena-verify` |
+  | Repository | `ci-config`, `branch-protection`, `repo-settings`, `release` |
 
 - **Tests, by layer.** All of it runs on the free plan and on GitHub's free minutes.
   - *Unit* (`tests/unit`): normalisation and lookup keys, the matching ladder, budgets and
@@ -650,10 +692,13 @@ scripts/                                         e2e, smoke, idempotency proof, 
 
   `make check` runs the first four layers (172 tests, under fifteen seconds); `make coverage`
   adds line coverage, 97 % at `v1.3.0`, and CI fails below 90 %.
-- **CI** (GitHub Actions, pinned to commit SHAs): lint + tests, `terraform fmt`/`validate`,
-  tflint, checkov, and a gitleaks scan. `main` is protected: all three checks must pass and
-  the branch must be current; no force pushes. Dependabot watches actions, `uv.lock` and
-  Terraform providers weekly.
+- **CI** (GitHub Actions, pinned to commit SHAs): lint + tests with the 90 % coverage floor
+  and a summary on every run, `terraform fmt`/`validate`, tflint, checkov, the terraform-docs
+  staleness check, and a gitleaks scan. The plan workflow also validates the state-machine
+  definition with the Step Functions API, and CodeQL analyses Python and the workflows on
+  every pull request and weekly. `main` is protected: the three CI checks must pass and the
+  branch must be current; no force pushes; branches are deleted on merge. Dependabot watches
+  actions, `uv.lock` and Terraform providers weekly.
 - **Repository settings as code.** `make branch-protection` applies
   `.github/branch-protection.json`; `make repo-settings` (`scripts/repo_settings.sh`)
   applies the description and topics, branch deletion on merge, secret scanning with push
@@ -667,6 +712,8 @@ scripts/                                         e2e, smoke, idempotency proof, 
 - **Terraform documentation.** Each stack and module has a README whose requirements,
   resources, inputs and outputs tables are generated by terraform-docs (`make tf-docs`,
   also a pre-commit hook); `make tf-docs-check` fails CI when one is stale.
+  [infra/envs/dev/README.md](infra/envs/dev/README.md) is the full list of the 33 knobs:
+  credit ceilings, guard thresholds, retention, the freshness objective, VPC attachment.
 - **Deploys from CI, no stored keys** ([ADR 0005](docs/adr/0005-ci-deploys-with-oidc.md)).
   Three OIDC roles from the bootstrap stack: a pull request gets a `terraform plan`
   comment rendered without refreshing (the role can only read the state); a merge to
@@ -674,16 +721,20 @@ scripts/                                         e2e, smoke, idempotency proof, 
   deploy gate; a daily drift job refreshes with a read-only role and fails when the
   account differs from `main`. `make ci-config` publishes the variables and the
   alert-email secret the workflows need.
-- **Pre-commit** mirrors CI: ruff, gitleaks, terraform fmt/validate/tflint/checkov,
-  whitespace and merge-marker checks.
+- **Pre-commit** mirrors CI: ruff check and format, gitleaks on the staged changes,
+  terraform fmt/validate/tflint/checkov and terraform-docs on changed Terraform, plus
+  whitespace, end-of-file, YAML/TOML/JSON, large-file, merge-marker, private-key and
+  AWS-credential checks.
 - **Branching and versions.** Work happens on `feat/*` branches merged by PR after a
   code review; commits follow Conventional Commits; milestones are tagged (`v0.0.1` local
   pipeline, `v0.1.0` end to end with the mock, `v0.2.0` live provider, `v0.3.0` Athena,
   `v0.4.0` hardening, `v1.0.0` submission, `v1.1.0` production practices, `v1.2.0` the $0
-  pass, `v1.2.x` documentation and test polish). Changes after `v1.0.0` continue on `main`
-  and are tagged `v1.x`; the package version is stamped on every curated row as
-  `pipeline_version`. Every version has a section in [CHANGELOG.md](CHANGELOG.md) (Keep a
-  Changelog format), and `make release TAG=v1.2.4` creates the tag if needed and publishes
+  pass, `v1.2.1` to `v1.2.3` documentation and test polish, `v1.2.4` repository surface,
+  `v1.2.5` reviewer and operator docs, `v1.2.6` property tests and reproducible builds,
+  `v1.3.0` right to erasure). Changes after `v1.0.0` continue on `main` and are tagged
+  `v1.x`; the package version is stamped on every curated row as `pipeline_version`. Every
+  version has a section in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format), and
+  `make release TAG=v1.3.0` creates the tag if needed and publishes
   the GitHub Release with that section as its notes. [CONTRIBUTING.md](CONTRIBUTING.md)
   has the review-before-PR rule and the release steps; the pull request template carries
   the checklist.

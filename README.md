@@ -10,8 +10,11 @@ provider's free monthly credits.
 
 **Status:** `v1.3.1`. Built and verified on a personal AWS Free-plan account on
 2026-09-25 and 2026-09-26 with live People Data Labs data; destroyed and rebuilt from
-nothing twice on 2026-09-26 to prove reproducibility; every change since has deployed from
-CI, and the last live exercise was the erasure run on 2026-09-27. [PLAN.md](PLAN.md) is the build plan with
+nothing twice on 2026-09-26 to prove reproducibility; every change since deployed from CI,
+and the last live exercise was the erasure run on 2026-09-27. After submission, on
+2026-10-06, the dev stack was backed up and destroyed (`make destroy`, 75 resources, 81 s)
+and the Terraform workflows were disabled; the bootstrap stack remains, so `make apply`
+recreates everything in a few minutes. [PLAN.md](PLAN.md) is the build plan with
 its phase log; `docs/adr/` holds the decision records; [docs/architecture.md](docs/architecture.md)
 has the component and IAM detail.
 

@@ -7,6 +7,13 @@ Release whose notes are the matching section below (`make release TAG=vX.Y.Z`).
 
 ## [Unreleased]
 
+### Changed
+
+- The dev stack was destroyed on 2026-10-06 after submission, with the data bucket, the
+  landing bucket and the state table backed up and verified first; the Terraform plan,
+  apply and drift workflows are disabled until the stack is recreated. The bootstrap stack
+  remains, so `make apply` restores everything.
+
 ## [1.3.1] - 2026-09-30
 
 Documentation and tooling for submission; no pipeline behaviour changes.

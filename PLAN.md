@@ -751,6 +751,19 @@ sample as a batch because two batches of the same people would show every person
 the local DuckDB answers (per-batch snapshots; the `person_current` view exists only in
 Athena); the messy sample goes through the guards' dry run instead.
 
+### Teardown — 2026-10-06
+
+Submitted on 2026-09-30 (repository link plus the `v1.3.1` source archive, which is the tip
+of `main`). The stack ran idle for a week at no cost, then: the data bucket (456 objects),
+the landing bucket (10 uploads) and the state table (66 items) were backed up locally and
+verified count for count; `make destroy` removed the 75 resources of `infra/envs/dev` in
+81 s; the account keeps only the bootstrap stack (state bucket, account-level public access
+block, the three GitHub OIDC roles); the `terraform-plan`, `terraform-apply` and
+`terraform-drift` workflows were disabled so nothing fails nightly or rebuilds the stack on
+a later merge. Credits left: $139.95 of the Free plan's allowance. `make apply` (then the
+SNS confirmation and `make set-api-key`) brings the stack back; re-enable the workflows to
+resume CI deploys.
+
 ## 9. Credit and cost budget
 
 **API credits (PDL free plan, per calendar month):**
